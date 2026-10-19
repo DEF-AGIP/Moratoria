@@ -32,11 +32,11 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- PapaParse for CSV parsing -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
-  <!-- SheetJS for native Excel (.xlsx / .xls) reading & writing -->
+  <!-- SheetJS (xlsx) for native Excel reading -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- PapaParse for CSV fallback reading -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -45,17 +45,6 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      height: 6px;
-      width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: #f1f5f9;
     }
     .badge-contado {
       background-color: #dcfce7;
@@ -72,87 +61,52 @@
       color: #7e22ce;
       border: 1px solid #e9d5ff;
     }
-    @media print {
-      .no-print {
-        display: none !important;
-      }
-      body {
-        background: white !important;
-        color: black !important;
-      }
-    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
-  <!-- TOP NOTIFICATION BANNER -->
+  <!-- TOP HEADER (Clean & Executive) -->
   <header class="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white shadow-lg sticky top-0 z-40 border-b border-sky-800/40">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="flex items-center justify-between">
         
         <!-- Logo / Title -->
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-3.5">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/20 text-white text-xl font-bold">
             <i class="fa-solid fa-chart-pie"></i>
           </div>
           <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-lg md:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            <div class="flex items-center gap-2.5">
+              <h1 class="text-lg md:text-xl font-bold tracking-tight text-white">
                 Tablero de Control de Moratoria
               </h1>
-              <span id="badge-source" class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+              <span id="badge-source" class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span id="source-name">data.csv</span>
+                <span id="source-name">data.xlsx</span>
               </span>
             </div>
-            <p class="text-xs text-sky-200/80">Seguimiento de adhesiones, deuda consolidada, cuotas y condonaciones</p>
+            <p class="text-xs text-sky-200/80">Seguimiento en tiempo real de deuda consolidada, capital, cuotas y condonaciones</p>
           </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="flex items-center flex-wrap gap-2 no-print">
-          <!-- Refresh from GitHub -->
-          <button id="btn-refresh" title="Recargar archivo desde GitHub" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600/80 hover:bg-sky-500 text-white transition flex items-center gap-1.5 shadow-sm border border-sky-400/30">
-            <i class="fa-solid fa-rotate" id="refresh-icon"></i>
-            <span>Actualizar datos</span>
-          </button>
-
-          <!-- Upload local file (Excel / CSV) -->
-          <label class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white cursor-pointer transition flex items-center gap-1.5 border border-slate-700 shadow-sm">
-            <i class="fa-solid fa-file-arrow-up text-sky-400"></i>
-            <span>Cargar Excel / CSV</span>
-            <input type="file" id="file-input" accept=".csv, .xlsx, .xls" class="hidden">
-          </label>
-
-          <!-- Export Excel -->
-          <button id="btn-export-excel" title="Descargar datos filtrados en Excel" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-700/80 hover:bg-emerald-600 text-white transition flex items-center gap-1.5 border border-emerald-500/30 shadow-sm">
-            <i class="fa-solid fa-file-excel"></i>
-            <span>Exportar</span>
-          </button>
-
-          <!-- Instructions Modal trigger -->
-          <button id="btn-open-guide" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 transition flex items-center gap-1.5">
-            <i class="fa-brands fa-github"></i>
-            <span>Guía GitHub</span>
-          </button>
+        <!-- Right Side: Status indicator -->
+        <div class="text-right hidden sm:block">
+          <span id="status-update-label" class="text-xs text-sky-200/70 font-mono">Conectando...</span>
         </div>
 
       </div>
     </div>
   </header>
 
-  <!-- STATUS / ALERT BAR -->
-  <div id="status-bar" class="bg-sky-50 border-b border-sky-200 text-sky-900 text-xs px-4 py-2 flex items-center justify-between transition-all">
-    <div class="max-w-7xl mx-auto w-full flex items-center justify-between">
+  <!-- SUBHEADER / STATUS NOTIFICATION -->
+  <div id="status-bar" class="bg-sky-50 border-b border-sky-200 text-sky-900 text-xs px-4 py-2 transition-all">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <i class="fa-solid fa-circle-info text-sky-600"></i>
-        <span id="status-message">Cargando datos de moratoria...</span>
+        <i class="fa-solid fa-file-excel text-emerald-600"></i>
+        <span id="status-message">Leyendo archivo Excel desde GitHub...</span>
       </div>
-      <div class="text-slate-500 text-xs flex items-center gap-3">
-        <span id="last-update-time">Cargando...</span>
-        <button id="btn-configure-url" class="text-sky-700 hover:underline flex items-center gap-1">
-          <i class="fa-solid fa-gear"></i> Origen de datos
-        </button>
+      <div class="text-slate-500 text-[11px]" id="records-summary-label">
+        Actualización automática
       </div>
     </div>
   </div>
@@ -161,7 +115,7 @@
   <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full space-y-6">
 
     <!-- FILTERS TOOLBAR -->
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 no-print">
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
       <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         
         <!-- Filter heading -->
@@ -169,7 +123,7 @@
           <i class="fa-solid fa-filter text-sky-600"></i>
           <span>Filtros de Análisis</span>
           <span id="filtered-count-badge" class="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-            Mostrando todos
+            Cargando...
           </span>
         </div>
 
@@ -184,7 +138,7 @@
             </select>
           </div>
 
-          <!-- Filter Cuotas (Solicitud especial: 1 pago, 2-11 cuotas, 12 cuotas) -->
+          <!-- Filter Cuotas (1 pago, 2-11 cuotas, 12 cuotas) -->
           <div>
             <label for="filter-cuotas" class="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Plan de Cuotas</label>
             <select id="filter-cuotas" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition font-medium">
@@ -223,7 +177,7 @@
     <!-- KEY FINANCIAL KPI CARDS -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       
-      <!-- KPI 1: Total Deuda Consolidada -->
+      <!-- KPI 1: Total Deuda Consolidada (TotConsolidado) -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
         <div class="absolute -right-3 -bottom-3 text-sky-100 text-7xl opacity-40 pointer-events-none">
           <i class="fa-solid fa-file-invoice-dollar"></i>
@@ -236,12 +190,12 @@
           <div id="kpi-total-consolidada" class="text-2xl font-extrabold text-slate-900 tracking-tight">$0</div>
         </div>
         <div class="mt-3 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
-          <span>Total ingresado al plan</span>
+          <span>Total en planes (TotConsolidado)</span>
           <span id="kpi-planes-count" class="font-semibold text-slate-700">0 planes</span>
         </div>
       </div>
 
-      <!-- KPI 2: Capital Nominal -->
+      <!-- KPI 2: Capital Nominal (Columna capital) -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
         <div class="absolute -right-3 -bottom-3 text-indigo-100 text-7xl opacity-40 pointer-events-none">
           <i class="fa-solid fa-vault"></i>
@@ -254,12 +208,12 @@
           <div id="kpi-total-nominal" class="text-2xl font-extrabold text-indigo-950 tracking-tight">$0</div>
         </div>
         <div class="mt-3 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
-          <span>Base de deuda original</span>
-          <span id="kpi-nominal-pct" class="font-semibold text-indigo-600">0% del total</span>
+          <span>Deuda original (capital)</span>
+          <span id="kpi-nominal-pct" class="font-semibold text-indigo-600">0% del consolidado</span>
         </div>
       </div>
 
-      <!-- KPI 3: Interés Condonado (Beneficio al contribuyente) -->
+      <!-- KPI 3: Interés Condonado -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
         <div class="absolute -right-3 -bottom-3 text-emerald-100 text-7xl opacity-40 pointer-events-none">
           <i class="fa-solid fa-tags"></i>
@@ -272,12 +226,12 @@
           <div id="kpi-total-condonado" class="text-2xl font-extrabold text-emerald-700 tracking-tight">$0</div>
         </div>
         <div class="mt-3 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
-          <span>Ahorro / Beneficio otorgado</span>
+          <span>Beneficio al contribuyente</span>
           <span id="kpi-tasa-condonacion" class="font-semibold text-emerald-600 font-mono">0% condonado</span>
         </div>
       </div>
 
-      <!-- KPI 4: Interés Plan vs Resarcitorio -->
+      <!-- KPI 4: Interés en Plan vs Resarcitorios -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
         <div class="absolute -right-3 -bottom-3 text-amber-100 text-7xl opacity-40 pointer-events-none">
           <i class="fa-solid fa-percent"></i>
@@ -297,14 +251,14 @@
 
     </section>
 
-    <!-- CUOTAS BREAKDOWN (REQUERIMIENTO PRINCIPAL DEL USUARIO) -->
+    <!-- CUOTAS BREAKDOWN (1 PAGO, 2-11 CUOTAS, 12 CUOTAS) -->
     <section class="space-y-3">
       <div class="flex items-center justify-between">
         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
           <i class="fa-solid fa-layer-group text-sky-600"></i>
           <span>Segmentación por Cantidad de Cuotas</span>
         </h2>
-        <span class="text-xs text-slate-500">Análisis específico: 1 Pago | 2 a 11 Cuotas | 12 Cuotas</span>
+        <span class="text-xs text-slate-500">1 Pago (Contado) | 2 a 11 Cuotas | 12 Cuotas (Máximo)</span>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -412,7 +366,7 @@
             <h3 class="text-sm font-bold text-slate-800">Distribución de Planes por Modalidad de Cuotas</h3>
             <p class="text-xs text-slate-500">Participación de 1 pago, 2-11 cuotas y 12 cuotas</p>
           </div>
-          <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600 no-print">
+          <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600">
             <button id="toggle-chart-cuotas-planes" class="px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700">Planes</button>
             <button id="toggle-chart-cuotas-montos" class="px-2 py-0.5 rounded hover:bg-slate-200">Monto ($)</button>
           </div>
@@ -422,12 +376,12 @@
         </div>
       </div>
 
-      <!-- Chart 2: Desglose por Impuesto (ABL vs RV) -->
+      <!-- Chart 2: Desglose por Impuesto -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="text-sm font-bold text-slate-800">Distribución por Tipo de Impuesto</h3>
-            <p class="text-xs text-slate-500">Monto consolidado según tributo (ABL, RV, etc.)</p>
+            <p class="text-xs text-slate-500">Deuda consolidada vs. Interés condonado por tributo</p>
           </div>
           <span class="text-xs px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-semibold">Tributos</span>
         </div>
@@ -436,12 +390,12 @@
         </div>
       </div>
 
-      <!-- Chart 3: Cantidad exacta de cuotas (Bar Chart 1 a 12) -->
+      <!-- Chart 3: Frecuencia por Cantidad Exacta de Cuotas (1 a 12) -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="text-sm font-bold text-slate-800">Frecuencia por Cantidad Exacta de Cuotas</h3>
-            <p class="text-xs text-slate-500">Cantidad de contribuyentes que eligieron cada cuota específica</p>
+            <p class="text-xs text-slate-500">Cantidad de planes acordados en cada cuota específica (1 a 12)</p>
           </div>
         </div>
         <div class="relative h-64 flex items-center justify-center">
@@ -449,14 +403,14 @@
         </div>
       </div>
 
-      <!-- Chart 4: Evolución Diaria de Adhesiones -->
+      <!-- Chart 4: Evolución Diaria de Consolidación -->
       <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="text-sm font-bold text-slate-800">Evolución Diaria de Consolidación</h3>
             <p class="text-xs text-slate-500">Avance cronológico por fecha de consolidación</p>
           </div>
-          <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600 no-print">
+          <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600">
             <button id="toggle-timeline-monto" class="px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700">Monto ($)</button>
             <button id="toggle-timeline-planes" class="px-2 py-0.5 rounded hover:bg-slate-200">Planes</button>
           </div>
@@ -468,189 +422,23 @@
 
     </section>
 
-    <!-- DETAILED DATA TABLE -->
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      
-      <!-- Table Header & Search -->
-      <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <i class="fa-solid fa-table-list text-sky-600"></i>
-            <span>Detalle Individual de Planes Ingresados</span>
-          </h3>
-          <p class="text-xs text-slate-500">Registro detallado con desglose de deuda, intereses y cuotas</p>
-        </div>
-
-        <div class="flex items-center gap-2 no-print">
-          <!-- Quick search -->
-          <div class="relative">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-            <input type="text" id="table-search" placeholder="Buscar impuesto, estado..." class="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none transition w-48 sm:w-64">
-          </div>
-          <!-- Rows per page -->
-          <select id="table-page-size" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
-            <option value="10">10 filas</option>
-            <option value="25" selected>25 filas</option>
-            <option value="50">50 filas</option>
-            <option value="100">100 filas</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Table responsive container -->
-      <div class="overflow-x-auto custom-scrollbar">
-        <table class="w-full text-left border-collapse text-xs">
-          <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200 text-[11px]">
-            <tr>
-              <th class="py-3 px-4 cursor-pointer hover:bg-slate-100 transition" onclick="sortTable('impuesto')">
-                Impuesto <i class="fa-solid fa-sort text-slate-300 ml-1"></i>
-              </th>
-              <th class="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition" onclick="sortTable('TotConsolidada')">
-                Total Consolidada <i class="fa-solid fa-sort text-slate-300 ml-1"></i>
-              </th>
-              <th class="py-3 px-4 text-center cursor-pointer hover:bg-slate-100 transition" onclick="sortTable('ctas')">
-                Cuotas <i class="fa-solid fa-sort text-slate-300 ml-1"></i>
-              </th>
-              <th class="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition" onclick="sortTable('Nominal')">
-                Nominal <i class="fa-solid fa-sort text-slate-300 ml-1"></i>
-              </th>
-              <th class="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition" onclick="sortTable('interes_plan')">
-                Interés Plan <i class="fa-solid fa-sort text-slate-300 ml-1"></i>
-              </th>
-              <th class="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition" onclick="sortTable('interes_condonado')">
-                Interés Condonado <i class="fa-solid fa-sort text-slate-300 ml-1"></i>
-              </th>
-              <th class="py-3 px-4 text-right cursor-pointer hover:bg-slate-100 transition" onclick="sortTable('Resarcitorios')">
-                Resarcitorios <i class="fa-solid fa-sort text-slate-300 ml-1"></i>
-              </th>
-              <th class="py-3 px-4 cursor-pointer hover:bg-slate-100 transition" onclick="sortTable('FechaConsolidacion')">
-                Fecha Consolidación <i class="fa-solid fa-sort text-slate-300 ml-1"></i>
-              </th>
-              <th class="py-3 px-4 text-center">Estado</th>
-            </tr>
-          </thead>
-          <tbody id="table-body" class="divide-y divide-slate-100 text-slate-700">
-            <!-- Dynamic rows will be rendered here -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination Footer -->
-      <div class="p-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
-        <div id="table-pagination-info">
-          Mostrando 0 de 0 registros
-        </div>
-        <div class="flex items-center gap-1.5 no-print">
-          <button id="btn-prev-page" class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-            <i class="fa-solid fa-chevron-left"></i> Anterior
-          </button>
-          <span id="current-page-num" class="px-3 py-1 font-semibold text-slate-800">1</span>
-          <button id="btn-next-page" class="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-            Siguiente <i class="fa-solid fa-chevron-right"></i>
-          </button>
-        </div>
-      </div>
-
-    </section>
-
   </main>
 
   <!-- FOOTER -->
   <footer class="bg-white border-t border-slate-200 py-4 mt-8 text-center text-xs text-slate-500">
     <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
       <div>Tablero de Control para Análisis de Avance de Moratoria</div>
-      <div>Preparado para alojamiento estático automático en <strong>GitHub Pages</strong></div>
+      <div>Actualizado automáticamente desde el repositorio de <strong>GitHub</strong></div>
     </div>
   </footer>
-
-  <!-- MODAL: GUÍA DE CONFIGURACIÓN Y ACTUALIZACIÓN EN GITHUB -->
-  <div id="modal-guide" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
-      <div class="flex items-center justify-between border-b pb-3">
-        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-          <i class="fa-brands fa-github text-xl text-slate-800"></i>
-          <span>¿Cómo poner esta página en GitHub y actualizarla con tu Excel?</span>
-        </h3>
-        <button id="btn-close-guide" class="text-slate-400 hover:text-slate-600 text-lg">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="space-y-4 text-xs text-slate-600 leading-relaxed">
-        
-        <div class="p-3 bg-sky-50 rounded-xl border border-sky-200">
-          <h4 class="font-bold text-sky-900 text-sm mb-1">Principio de funcionamiento:</h4>
-          <p>
-            Esta página web es <strong>100% estática</strong>. Lee automáticamente el archivo <code>data.csv</code> (o <code>data.xlsx</code>) que está guardado en el mismo repositorio de GitHub. 
-            <strong>Cada vez que subas un Excel o CSV nuevo al GitHub, la página se actualiza automáticamente para todos los que la miren.</strong>
-          </p>
-        </div>
-
-        <ol class="space-y-3 list-decimal list-inside font-medium text-slate-700">
-          <li class="p-2 bg-slate-50 rounded-lg border border-slate-200">
-            <strong>Paso 1: Crear el repositorio en GitHub</strong><br>
-            <span class="text-slate-500 font-normal">Creá un repositorio en GitHub (ej. <code>tablero-moratoria</code>) de tipo Público o Privado.</span>
-          </li>
-          <li class="p-2 bg-slate-50 rounded-lg border border-slate-200">
-            <strong>Paso 2: Subir los archivos</strong><br>
-            <span class="text-slate-500 font-normal">Subí a la raíz del repositorio los archivos: <code>index.html</code>, <code>data.csv</code> (o <code>data.xlsx</code>) y <code>README.md</code>.</span>
-          </li>
-          <li class="p-2 bg-slate-50 rounded-lg border border-slate-200">
-            <strong>Paso 3: Activar GitHub Pages</strong><br>
-            <span class="text-slate-500 font-normal">En tu repositorio vas a <strong>Settings</strong> &gt; <strong>Pages</strong>. En <em>Build and deployment &gt; Branch</em> seleccionás la rama <code>main</code> (raíz <code>/ (root)</code>) y hacés clic en <strong>Save</strong>. ¡En 1 minuto tu página estará online en <code>https://tu-usuario.github.io/tu-repo/</code>!</span>
-          </li>
-          <li class="p-2 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900">
-            <strong>Paso 4: ¿Cómo actualizar los datos en el futuro?</strong><br>
-            <span class="font-normal text-emerald-800">
-              Cada vez que saques un reporte nuevo de la moratoria:
-              <br>• Podés reemplazar el archivo <code>data.csv</code> o <code>data.xlsx</code> directamente en la web de GitHub (botón <em>Add file &gt; Upload files</em>).
-              <br>• Al confirmarlo (Commit), la página web cargará los nuevos números de inmediato al refrescar.
-            </span>
-          </li>
-        </ol>
-
-        <div class="border-t pt-3 flex justify-end">
-          <button id="btn-close-guide-2" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-semibold transition">
-            Entendido
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: CONFIGURAR URL DE DATOS -->
-  <div id="modal-url" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-      <div class="flex items-center justify-between border-b pb-3">
-        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-link text-sky-600"></i>
-          <span>Origen del archivo de datos</span>
-        </h3>
-        <button id="btn-close-url" class="text-slate-400 hover:text-slate-600">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <div class="space-y-3 text-xs">
-        <p class="text-slate-600">
-          Por defecto, la página busca el archivo <code>data.csv</code> (o <code>data.xlsx</code>) en la misma carpeta. También podés indicarle una URL remota de GitHub Raw:
-        </p>
-        <input type="text" id="input-custom-url" value="./data.csv" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
-        <p class="text-[11px] text-slate-400">Ejemplo: <code>./data.csv</code> o <code>https://raw.githubusercontent.com/usuario/repo/main/data.csv</code></p>
-        <div class="flex justify-end gap-2 pt-2">
-          <button id="btn-save-url" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-semibold transition">
-            Guardar y Cargar
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- APPLICATION JAVASCRIPT LOGIC -->
   <script>
     // State management
     let rawDataset = [];
     let filteredDataset = [];
-    let currentDataUrl = './data.csv';
+    // Prioridad de lectura directa: data.xlsx
+    let currentDataUrl = './data.xlsx';
     let chartCuotasDistInstance = null;
     let chartImpuestoDistInstance = null;
     let chartCuotasHistoInstance = null;
@@ -659,12 +447,6 @@
     // View modes
     let cuotasChartMetric = 'planes'; // 'planes' | 'montos'
     let timelineChartMetric = 'monto'; // 'monto' | 'planes'
-
-    // Table pagination and sorting
-    let currentPage = 1;
-    let pageSize = 25;
-    let sortColumn = 'TotConsolidada';
-    let sortDirection = 'desc';
 
     // Formatters
     const currencyFormatter = new Intl.NumberFormat('es-AR', {
@@ -679,24 +461,30 @@
       maximumFractionDigits: 0
     });
 
-    // Helper: parse numbers safely (handles commas, points, nulls)
+    // Helper: parse numbers safely (handles strings, currencies, commas and dots)
     function parseNumeric(val) {
       if (val === undefined || val === null) return 0;
       if (typeof val === 'number') return isNaN(val) ? 0 : val;
       let s = String(val).trim().replace(/\$/g, '').replace(/\s/g, '');
       if (s === '') return 0;
-      // Handle comma as decimal if no point
       if (s.includes(',') && !s.includes('.')) {
         s = s.replace(',', '.');
       } else if (s.includes('.') && s.includes(',')) {
-        // Thousands separator dot, decimal comma
         s = s.replace(/\./g, '').replace(',', '.');
       }
       let n = parseFloat(s);
       return isNaN(n) ? 0 : n;
     }
 
-    // Helper: normalize and clean rows
+    // Helper: normalize and clean rows according to the specified columns:
+    // - TotConsolidado (o TotConsolidada)
+    // - capital (o Nominal)
+    // - ctas
+    // - Resarcitorios
+    // - Estado
+    // - FechaConsolidacion
+    // - interes plan
+    // - interes condonado
     function cleanAndNormalizeData(dataRows) {
       const cleaned = [];
 
@@ -704,26 +492,34 @@
         const row = dataRows[i];
         if (!row) continue;
 
-        // Extract and trim keys (keys may have spaces like "interes plan")
+        // Clean keys
         const item = {};
         for (let key in row) {
           const cleanKey = key.trim();
           item[cleanKey] = typeof row[key] === 'string' ? row[key].trim() : row[key];
         }
 
-        const impuesto = (item['impuesto'] || item['Impuesto'] || '').toString().trim().toUpperCase();
-        const totalConsolidada = parseNumeric(item['TotConsolidada'] || item['totconsolidada'] || item['TotalConsolidada'] || 0);
+        const impuesto = (item['impuesto'] || item['Impuesto'] || item['IMPUESTO'] || '').toString().trim().toUpperCase();
+        
+        // Total consolidado: columna TotConsolidado (soporta variantes)
+        const totalConsolidada = parseNumeric(
+          item['TotConsolidado'] ?? item['totconsolidado'] ?? item['TotConsolidada'] ?? item['totconsolidada'] ?? item['TotalConsolidado'] ?? item['Total Consolidado'] ?? 0
+        );
         
         // Skip empty spacer rows or trailing blank lines
         if (!impuesto && totalConsolidada === 0) continue;
 
-        const cuotas = parseInt(item['ctas'] || item['Ctas'] || item['cuotas'] || item['Cuotas'] || 1, 10) || 1;
-        const resarcitorios = parseNumeric(item['Resarcitorios'] || item['resarcitorio'] || item['Resarcitorio'] || 0);
-        const interesPlan = parseNumeric(item['interes plan'] || item['InteresPlan'] || item['interes_plan'] || 0);
-        const nominal = parseNumeric(item['Nominal'] || item['nominal'] || 0);
-        const interesCondonado = parseNumeric(item['interes condonado'] || item['interes_condonado'] || item['InteresCondonado'] || 0);
-        const estado = (item['Estado'] || item['estado'] || 'VIGENTE').toString().trim().toUpperCase();
-        const fecha = (item['FechaConsolidacion'] || item['Fecha'] || item['fecha'] || '').toString().trim();
+        // Capital nominal: columna capital (soporta variantes)
+        const capitalNominal = parseNumeric(
+          item['capital'] ?? item['Capital'] ?? item['CAPITAL'] ?? item['Nominal'] ?? item['nominal'] ?? 0
+        );
+
+        const cuotas = parseInt(item['ctas'] ?? item['Ctas'] ?? item['cuotas'] ?? item['Cuotas'] ?? 1, 10) || 1;
+        const resarcitorios = parseNumeric(item['Resarcitorios'] ?? item['resarcitorios'] ?? item['resarcitorio'] ?? item['Resarcitorio'] ?? 0);
+        const interesPlan = parseNumeric(item['interes plan'] ?? item['interes_plan'] ?? item['Interes plan'] ?? item['InteresPlan'] ?? 0);
+        const interesCondonado = parseNumeric(item['interes condonado'] ?? item['interes_condonado'] ?? item['Interes condonado'] ?? item['InteresCondonado'] ?? 0);
+        const estado = (item['Estado'] ?? item['estado'] ?? 'VIGENTE').toString().trim().toUpperCase();
+        const fecha = (item['FechaConsolidacion'] ?? item['fechaconsolidacion'] ?? item['Fecha'] ?? item['fecha'] ?? '').toString().trim();
 
         // Categorize installments
         let grupoCuotas = '1 Pago';
@@ -743,7 +539,7 @@
           grupoCuotas: grupoCuotas,
           Resarcitorios: resarcitorios,
           interes_plan: interesPlan,
-          Nominal: nominal,
+          Nominal: capitalNominal,
           interes_condonado: interesCondonado,
           Estado: estado,
           FechaConsolidacion: fecha
@@ -753,570 +549,25 @@
       return cleaned;
     }
 
-    // Embedded fallback sample data (permite que funcione al hacer doble clic directo en Windows sobre index.html sin servidor)
-    const EMBEDDED_SAMPLE_DATA = `impuesto,TotConsolidada,ctas,Resarcitorios,Estado,FechaConsolidacion,interes plan,Nominal,interes condonado
-ABL,311456.55,8,80780.22,VIGENTE,2026-10-15,40390.11,271066.44,40390.11
-ABL,409274.10,6,59575.68,VIGENTE,2026-10-15,29787.84,379486.26,29787.84
-ABL,1164263.19,12,302235.08,VIGENTE,2026-10-15,151117.54,1013145.65,151117.54
-ABL,273359.12,12,71780.62,VIGENTE,2026-10-15,35890.31,237468.81,35890.31
-ABL,555985.21,1,335097.22,VIGENTE,2026-10-15,0,555985.21,335097.22
-ABL,1436109.95,12,449874.25,VIGENTE,2026-10-15,224937.13,1211172.83,224937.13
-ABL,4847263.21,12,2390216.35,VIGENTE,2026-10-15,1195108.18,3652155.04,1195108.18
-ABL,31593.81,6,3889.48,VIGENTE,2026-10-15,1944.74,29649.07,1944.74
-ABL,444946.27,1,135055.93,VIGENTE,2026-10-15,0,444946.27,135055.93
-ABL,42823.08,1,16722.58,VIGENTE,2026-10-15,0,42823.08,16722.58
-ABL,1695356.57,12,631125.03,VIGENTE,2026-10-15,315562.52,1379794.06,315562.52
-ABL,3038049.37,12,1278065.17,VIGENTE,2026-10-15,639032.59,2399016.79,639032.59
-ABL,831505.44,1,412243.43,VIGENTE,2026-10-15,0,831505.44,412243.43
-ABL,462445.23,1,66632.35,VIGENTE,2026-10-15,0,462445.23,66632.35
-ABL,507874.35,12,203146.07,VIGENTE,2026-10-15,101573.04,406301.31,101573.04
-ABL,506578.79,12,127786.12,VIGENTE,2026-10-15,63893.06,442685.73,63893.06
-ABL,1539281.18,12,515840.14,VIGENTE,2026-10-15,257920.07,1281361.11,257920.07
-ABL,174989.85,1,53124.28,VIGENTE,2026-10-15,0,174989.85,53124.28
-ABL,2861340.09,1,864985.76,VIGENTE,2026-10-15,0,2861340.09,864985.76
-ABL,242195.62,1,326735.79,VIGENTE,2026-10-15,0,242195.62,326735.79
-ABL,450054.06,12,194920.27,VIGENTE,2026-10-15,97460.14,352593.93,97460.14
-ABL,56981.18,1,7447.17,VIGENTE,2026-10-15,0,56981.18,7447.17
-ABL,337572.20,1,204610.81,VIGENTE,2026-10-15,0,337572.20,204610.81
-ABL,188757.26,12,49672.08,VIGENTE,2026-10-15,24836.04,163921.22,24836.04
-ABL,179422.80,1,70286.65,VIGENTE,2026-10-15,0,179422.80,70286.65
-ABL,347666.17,1,218713.25,VIGENTE,2026-10-15,0,347666.17,218713.25
-ABL,988317.04,12,215151.19,VIGENTE,2026-10-15,107575.60,880741.45,107575.60
-ABL,493447.57,1,194453.72,VIGENTE,2026-10-15,0,493447.57,194453.72
-ABL,2479054.08,12,1129858.38,VIGENTE,2026-10-15,564929.19,1914124.89,564929.19
-ABL,191329.66,12,50240.71,VIGENTE,2026-10-15,25120.36,166209.31,25120.36
-ABL,544097.64,1,170506.01,VIGENTE,2026-10-15,0,544097.64,170506.01
-ABL,440343.72,12,131142.20,VIGENTE,2026-10-16,65571.10,374772.62,65571.10
-ABL,234904.71,12,48791.65,VIGENTE,2026-10-16,24395.83,210508.88,24395.83
-ABL,269684.92,12,56975.30,VIGENTE,2026-10-16,28487.65,241197.27,28487.65
-ABL,127644.67,12,24894.70,VIGENTE,2026-10-16,12447.35,115197.32,12447.35
-ABL,388670.96,12,221868.79,VIGENTE,2026-10-16,110934.40,277736.57,110934.40
-ABL,638156.80,12,163614.32,VIGENTE,2026-10-16,81807.16,556349.64,81807.16
-ABL,1093080.52,12,422610.33,VIGENTE,2026-10-16,211305.17,881775.36,211305.17
-ABL,573239.78,1,103276.64,VIGENTE,2026-10-16,0,573239.78,103276.64
-ABL,776049.23,1,977807.12,VIGENTE,2026-10-16,0,776049.23,977807.12
-ABL,2151687.10,12,565101.57,VIGENTE,2026-10-16,282550.79,1869136.32,282550.79
-ABL,121388.87,2,31875.15,VIGENTE,2026-10-16,15937.58,105451.30,15937.58
-ABL,1436544.73,1,1091556.15,VIGENTE,2026-10-16,0,1436544.73,1091556.15
-ABL,369970.25,3,97149.51,VIGENTE,2026-10-16,48574.76,321395.50,48574.76
-ABL,268291.31,3,84239.63,VIGENTE,2026-10-16,42119.82,226171.50,42119.82
-ABL,223810.45,1,95972.59,VIGENTE,2026-10-16,0,223810.45,95972.59
-ABL,430821.92,1,184706.52,VIGENTE,2026-10-16,0,430821.92,184706.52
-ABL,436695.74,1,172089.37,VIGENTE,2026-10-16,0,436695.74,172089.37
-ABL,52420.95,1,6876.79,VIGENTE,2026-10-16,0,52420.95,6876.79
-ABL,166616.02,1,44767.92,VIGENTE,2026-10-16,0,166616.02,44767.92
-ABL,2262450.39,12,1148227.61,VIGENTE,2026-10-16,574113.81,1688336.59,574113.81
-RV,565386.03,6,69604.13,VIGENTE,2026-10-15,34802.07,530583.97,34802.07
-RV,107323.46,12,33674.27,VIGENTE,2026-10-15,16837.14,90486.33,16837.14
-RV,541678.08,4,115458.78,VIGENTE,2026-10-15,57729.39,483948.69,57729.39
-RV,199924.08,12,94098.63,VIGENTE,2026-10-15,47049.32,152874.76,47049.32
-RV,218720.12,12,112541.26,VIGENTE,2026-10-15,56270.63,162449.49,56270.63
-RV,143183.30,1,119663.11,VIGENTE,2026-10-15,0,143183.30,119663.11
-RV,3031119.56,1,2202757.77,VIGENTE,2026-10-15,0,3031119.56,2202757.77
-RV,49916.77,1,79228.19,VIGENTE,2026-10-15,0,49916.77,79228.19
-RV,323446.19,1,121179.02,VIGENTE,2026-10-15,0,323446.19,121179.02
-RV,139847.58,1,45508.09,VIGENTE,2026-10-15,0,139847.58,45508.09
-RV,1262539.53,1,827194.22,VIGENTE,2026-10-15,0,1262539.53,827194.22
-RV,2689891.44,1,840746.23,VIGENTE,2026-10-15,0,2689891.44,840746.23
-RV,310334.44,1,297325.79,VIGENTE,2026-10-15,0,310334.44,297325.79
-RV,1813438.32,1,613111.32,VIGENTE,2026-10-15,0,1813438.32,613111.32
-RV,1190542.56,12,253764.37,VIGENTE,2026-10-15,126882.19,1063660.38,126882.19
-RV,88977.29,12,16381.78,VIGENTE,2026-10-15,8190.89,80786.40,8190.89
-RV,77348.30,1,12690.46,VIGENTE,2026-10-15,0,77348.30,12690.46
-RV,274398.81,12,58488.15,VIGENTE,2026-10-15,29244.08,245154.74,29244.08
-RV,2462981.71,12,743196.58,VIGENTE,2026-10-15,371598.29,2091383.42,371598.29
-RV,3875829.01,1,1400713.66,VIGENTE,2026-10-15,0,3875829.01,1400713.66
-RV,20282.00,1,10647.69,VIGENTE,2026-10-15,0,20282.00,10647.69
-RV,987138.26,1,603291.71,VIGENTE,2026-10-15,0,987138.26,603291.71
-RV,97654.20,12,25209.15,VIGENTE,2026-10-15,12604.58,85049.63,12604.58
-RV,167817.06,1,27533.58,VIGENTE,2026-10-15,0,167817.06,27533.58
-RV,141500.36,1,108748.07,VIGENTE,2026-10-15,0,141500.36,108748.07
-RV,2695420.93,12,638271.04,VIGENTE,2026-10-15,319135.52,2376285.41,319135.52
-RV,244256.94,1,78540.04,VIGENTE,2026-10-15,0,244256.94,78540.04
-RV,1288359.48,12,311224.32,VIGENTE,2026-10-15,155612.16,1132747.32,155612.16
-RV,3680199.95,1,1019572.35,VIGENTE,2026-10-15,0,3680199.95,1019572.35
-RV,763073.07,12,162649.16,VIGENTE,2026-10-15,81324.58,681748.49,81324.58
-RV,849329.48,12,244843.33,VIGENTE,2026-10-15,122421.67,726907.82,122421.67
-RV,132171.46,1,85921.17,VIGENTE,2026-10-15,0,132171.46,85921.17
-RV,257586.04,1,76728.31,VIGENTE,2026-10-15,0,257586.04,76728.31
-RV,931828.41,12,364130.38,VIGENTE,2026-10-15,182065.19,749763.22,182065.19
-RV,254814.97,12,120037.16,VIGENTE,2026-10-15,60018.58,194796.39,60018.58
-RV,727534.74,1,215645.15,VIGENTE,2026-10-15,0,727534.74,215645.15
-RV,3671744.43,1,1605855.04,VIGENTE,2026-10-15,0,3671744.43,1605855.04
-RV,480574.72,1,419983.06,VIGENTE,2026-10-15,0,480574.72,419983.06
-RV,420815.98,1,126205.18,VIGENTE,2026-10-15,0,420815.98,126205.18
-RV,136404.24,1,32542.84,VIGENTE,2026-10-15,0,136404.24,32542.84
-RV,1676873.83,1,664470.50,VIGENTE,2026-10-15,0,1676873.83,664470.50
-RV,860251.67,6,223056.02,VIGENTE,2026-10-15,111528.01,748723.66,111528.01
-RV,807556.44,12,211771.65,VIGENTE,2026-10-15,105885.83,701670.62,105885.83
-RV,230804.41,10,59581.52,VIGENTE,2026-10-15,29790.76,201013.65,29790.76
-RV,269312.16,12,40835.83,VIGENTE,2026-10-15,20417.92,248894.24,20417.92
-RV,378894.02,1,239028.62,VIGENTE,2026-10-15,0,378894.02,239028.62
-RV,1588423.44,1,489300.08,VIGENTE,2026-10-15,0,1588423.44,489300.08
-RV,1358524.51,12,690994.99,VIGENTE,2026-10-15,345497.50,1013027.02,345497.50
-RV,70411.60,1,11552.36,VIGENTE,2026-10-15,0,70411.60,11552.36
-RV,705949.45,12,182238.86,VIGENTE,2026-10-15,91119.43,614830.02,91119.43
-RV,365803.41,12,77971.06,VIGENTE,2026-10-16,38985.53,326817.88,38985.53
-RV,2803674.61,12,1332190.50,VIGENTE,2026-10-16,666095.25,2137579.36,666095.25
-RV,354101.79,1,71116.85,VIGENTE,2026-10-16,0,354101.79,71116.85
-RV,134865.87,12,32539.67,VIGENTE,2026-10-16,16269.84,118596.04,16269.84
-RV,449217.10,6,108384.54,VIGENTE,2026-10-16,54192.27,395024.83,54192.27
-RV,282310.92,12,68114.37,VIGENTE,2026-10-16,34057.19,248253.74,34057.19
-RV,734709.89,1,196498.38,VIGENTE,2026-10-16,0,734709.89,196498.38
-RV,646223.37,12,137742.64,VIGENTE,2026-10-16,68871.32,577352.05,68871.32
-RV,4556226.15,12,1938878.64,VIGENTE,2026-10-16,969439.32,3586786.83,969439.32
-RV,595547.08,12,153738.80,VIGENTE,2026-10-16,76869.40,518677.68,76869.40
-RV,12982.62,1,41196.01,VIGENTE,2026-10-16,0,12982.62,41196.01
-RV,510437.38,1,83746.95,VIGENTE,2026-10-16,0,510437.38,83746.95
-RV,1197699.86,12,181607.35,VIGENTE,2026-10-16,90803.68,1106896.19,90803.68
-RV,1162882.97,12,388080.87,VIGENTE,2026-10-16,194040.44,968842.53,194040.44
-RV,53039.55,1,61411.45,VIGENTE,2026-10-16,0,53039.55,61411.45
-RV,487252.76,1,144424.30,VIGENTE,2026-10-16,0,487252.76,144424.30
-RV,603839.08,1,188669.44,VIGENTE,2026-10-16,0,603839.08,188669.44
-RV,907612.90,1,408112.41,VIGENTE,2026-10-16,0,907612.90,408112.41
-RV,260489.39,12,67244.60,VIGENTE,2026-10-16,33622.30,226867.09,33622.30
-RV,257153.08,12,136094.69,VIGENTE,2026-10-16,68047.35,189105.74,68047.35
-RV,528220.16,1,126020.92,VIGENTE,2026-10-16,0,528220.16,126020.92
-RV,2020791.97,1,546817.15,VIGENTE,2026-10-16,0,2020791.97,546817.15
-RV,440088.38,1,130444.53,VIGENTE,2026-10-16,0,440088.38,130444.53
-RV,4409387.55,12,1184075.14,VIGENTE,2026-10-16,592037.57,3817349.98,592037.57
-RV,3752633.65,12,968731.86,VIGENTE,2026-10-16,484365.93,3268267.72,484365.93
-RV,377414.50,1,88943.01,VIGENTE,2026-10-16,0,377414.50,88943.01
-RV,131214.28,1,21528.20,VIGENTE,2026-10-16,0,131214.28,21528.20
-RV,208879.82,12,31672.46,VIGENTE,2026-10-16,15836.23,193043.59,15836.23
-RV,209353.84,1,34348.48,VIGENTE,2026-10-16,0,209353.84,34348.48
-RV,234908.52,12,55415.86,VIGENTE,2026-10-16,27707.93,207200.59,27707.93
-RV,1002495.35,12,280573.10,VIGENTE,2026-10-16,140286.55,862208.80,140286.55
-RV,41372.50,1,45516.32,VIGENTE,2026-10-16,0,41372.50,45516.32
-RV,254168.71,1,237682.67,VIGENTE,2026-10-16,0,254168.71,237682.67
-RV,429033.64,12,120075.66,VIGENTE,2026-10-16,60037.83,368995.81,60037.83
-RV,1069666.31,12,346693.36,VIGENTE,2026-10-16,173346.68,896319.63,173346.68
-RV,1993124.42,1,639795.22,VIGENTE,2026-10-16,0,1993124.42,639795.22
-RV,926586.12,12,541676.32,VIGENTE,2026-10-16,270838.16,655747.96,270838.16
-RV,530899.79,12,113161.39,VIGENTE,2026-10-16,56580.70,474319.10,56580.70
-RV,407188.26,1,170736.17,VIGENTE,2026-10-16,0,407188.26,170736.17
-RV,487417.32,12,120215.48,VIGENTE,2026-10-16,60107.74,427309.58,60107.74
-RV,405636.66,1,434552.94,VIGENTE,2026-10-16,0,405636.66,434552.94
-RV,69517.93,1,19753.12,VIGENTE,2026-10-16,0,69517.93,19753.12
-RV,170334.21,12,56818.34,VIGENTE,2026-10-16,28409.17,141925.04,28409.17
-RV,768182.61,1,667747.83,VIGENTE,2026-10-16,0,768182.61,667747.83
-RV,381233.12,1,171944.49,VIGENTE,2026-10-16,0,381233.12,171944.49
-RV,224074.86,1,134027.90,VIGENTE,2026-10-16,0,224074.86,134027.90
-RV,340426.89,12,87880.25,VIGENTE,2026-10-16,43940.13,296486.77,43940.13
-RV,1464934.45,12,431747.93,VIGENTE,2026-10-16,215873.97,1249060.48,215873.97
-RV,419773.84,1,294541.29,VIGENTE,2026-10-16,0,419773.84,294541.29
-RV,2148414.18,12,1202175.31,VIGENTE,2026-10-16,601087.66,1547326.53,601087.66
-RV,165617.32,6,37540.05,VIGENTE,2026-10-16,18770.03,146847.30,18770.03
-RV,154689.48,12,83035.80,VIGENTE,2026-10-16,41517.90,113171.58,41517.90
-RV,1494817.78,1,672296.14,VIGENTE,2026-10-16,0,1494817.78,672296.14
-RV,255808.38,1,76709.56,VIGENTE,2026-10-16,0,255808.38,76709.56
-RV,589674.70,12,395683.78,VIGENTE,2026-10-16,197841.89,391832.81,197841.89
-RV,801983.32,1,242456.57,VIGENTE,2026-10-16,0,801983.32,242456.57
-RV,431342.36,1,214195.74,VIGENTE,2026-10-16,0,431342.36,214195.74
-RV,1390658.08,1,683880.89,VIGENTE,2026-10-16,0,1390658.08,683880.89
-RV,325887.02,12,161106.96,VIGENTE,2026-10-16,80553.48,245333.54,80553.48
-RV,3616314.95,12,1032292.09,VIGENTE,2026-10-16,516146.05,3100168.91,516146.05
-RV,1871697.47,12,531312.41,VIGENTE,2026-10-16,265656.21,1606041.27,265656.21
-RV,1343184.16,1,565469.58,VIGENTE,2026-10-16,0,1343184.16,565469.58
-RV,263919.64,1,110662.90,VIGENTE,2026-10-16,0,263919.64,110662.90
-RV,252412.87,1,62508.76,VIGENTE,2026-10-16,0,252412.87,62508.76
-RV,408760.26,1,171395.30,VIGENTE,2026-10-16,0,408760.26,171395.30
-RV,512382.43,6,160767.32,VIGENTE,2026-10-16,80383.66,431998.77,80383.66
-RV,1000127.26,12,182533.16,VIGENTE,2026-10-16,91266.58,908860.68,91266.58
-RV,238852.13,1,121579.75,VIGENTE,2026-10-16,0,238852.13,121579.75
-RV,275686.83,1,106634.72,VIGENTE,2026-10-16,0,275686.83,106634.72
-RV,636170.20,1,151775.26,VIGENTE,2026-10-16,0,636170.20,151775.26
-RV,1639911.99,12,825449.90,VIGENTE,2026-10-16,412724.95,1227187.04,412724.95
-RV,656570.91,1,131863.95,VIGENTE,2026-10-16,0,656570.91,131863.95
-RV,758515.08,1,152338.15,VIGENTE,2026-10-16,0,758515.08,152338.15
-RV,964629.51,12,249016.40,VIGENTE,2026-10-16,124508.20,840121.31,124508.20
-RV,586861.91,1,326036.03,VIGENTE,2026-10-16,0,586861.91,326036.03
-RV,1378387.01,1,1091522.28,VIGENTE,2026-10-16,0,1378387.01,1091522.28
-RV,318872.01,1,88752.78,VIGENTE,2026-10-16,0,318872.01,88752.78
-RV,3251581.23,1,2497869.67,VIGENTE,2026-10-16,0,3251581.23,2497869.67
-RV,5323791.57,12,2233745.38,VIGENTE,2026-10-16,1116872.69,4206918.88,1116872.69
-RV,271164.38,1,80591.48,VIGENTE,2026-10-16,0,271164.38,80591.48
-RV,388144.69,1,421919.90,VIGENTE,2026-10-16,0,388144.69,421919.90
-RV,1417594.95,12,396748.99,VIGENTE,2026-10-16,198374.50,1219220.46,198374.50
-RV,241663.36,1,203796.43,VIGENTE,2026-10-16,0,241663.36,203796.43
-RV,585394.18,1,173513.95,VIGENTE,2026-10-16,0,585394.18,173513.95
-RV,121984.01,1,192226.64,VIGENTE,2026-10-16,0,121984.01,192226.64
-RV,83919.26,1,11008.86,VIGENTE,2026-10-16,0,83919.26,11008.86
-RV,283357.00,12,34883.81,VIGENTE,2026-10-16,17441.91,265915.10,17441.91
-RV,853236.69,12,557134.03,VIGENTE,2026-10-16,278567.02,574669.67,278567.02
-RV,447035.80,1,426017.19,VIGENTE,2026-10-16,0,447035.80,426017.19
-RV,1163639.52,12,248029.98,VIGENTE,2026-10-16,124014.99,1039624.53,124014.99
-RV,416145.60,12,107426.81,VIGENTE,2026-10-16,53713.41,362432.19,53713.41
-RV,1875294.78,1,998150.82,VIGENTE,2026-10-16,0,1875294.78,998150.82
-RV,119131.71,12,30753.51,VIGENTE,2026-10-16,15376.76,103754.96,15376.76
-RV,79619.04,1,28293.52,VIGENTE,2026-10-16,0,79619.04,28293.52
-RV,1939306.36,12,408164.75,VIGENTE,2026-10-16,204082.38,1735223.98,204082.38
-RV,1586093.48,12,374165.79,VIGENTE,2026-10-16,187082.90,1399010.58,187082.90
-RV,375204.04,6,96914.73,VIGENTE,2026-10-16,48457.37,326746.68,48457.37
-RV,143790.49,1,18863.01,VIGENTE,2026-10-16,0,143790.49,18863.01
-RV,1654039.55,12,549383.01,VIGENTE,2026-10-16,274691.51,1379348.05,274691.51
-RV,205704.22,1,91899.35,VIGENTE,2026-10-16,0,205704.22,91899.35
-RV,1033765.63,12,461106.17,VIGENTE,2026-10-16,230553.09,803212.55,230553.09
-RV,156960.72,1,26244.89,VIGENTE,2026-10-16,0,156960.72,26244.89
-RV,376667.19,1,241325.30,VIGENTE,2026-10-16,0,376667.19,241325.30
-RV,1116212.50,1,333017.01,VIGENTE,2026-10-16,0,1116212.50,333017.01
-RV,705520.81,1,577585.67,VIGENTE,2026-10-16,0,705520.81,577585.67
-RV,940714.81,6,426477.28,VIGENTE,2026-10-16,213238.64,727476.17,213238.64
-RV,1591751.88,1,436735.32,VIGENTE,2026-10-16,0,1591751.88,436735.32
-RV,856576.46,1,612059.04,VIGENTE,2026-10-16,0,856576.46,612059.04
-RV,398412.18,1,118091.48,VIGENTE,2026-10-16,0,398412.18,118091.48
-RV,1456388.04,1,1068229.12,VIGENTE,2026-10-16,0,1456388.04,1068229.12
-RV,2256100.21,12,586174.33,VIGENTE,2026-10-16,293087.17,1963013.05,293087.17
-RV,424768.10,12,77524.40,VIGENTE,2026-10-16,38762.20,386005.90,38762.20
-RV,437575.48,1,207933.12,VIGENTE,2026-10-16,0,437575.48,207933.12
-RV,35268.94,1,6270.31,VIGENTE,2026-10-16,0,35268.94,6270.31
-RV,994083.84,12,545403.58,VIGENTE,2026-10-16,272701.79,721382.05,272701.79
-RV,271573.60,12,167416.11,VIGENTE,2026-10-16,83708.06,187865.54,83708.06
-RV,706622.04,12,128965.54,VIGENTE,2026-10-16,64482.77,642139.27,64482.77
-RV,651469.90,1,431468.26,VIGENTE,2026-10-16,0,651469.90,431468.26
-RV,3909638.81,12,1335246.27,VIGENTE,2026-10-16,667623.14,3242015.68,667623.14
-RV,374852.24,1,111108.19,VIGENTE,2026-10-16,0,374852.24,111108.19
-RV,812824.55,6,296541.22,VIGENTE,2026-10-16,148270.61,664553.94,148270.61
-RV,374921.58,1,111128.74,VIGENTE,2026-10-16,0,374921.58,111128.74
-RV,258129.70,1,227982.69,VIGENTE,2026-10-16,0,258129.70,227982.69
-RV,302037.10,12,84532.55,VIGENTE,2026-10-16,42266.28,259770.82,42266.28
-RV,237052.64,1,194847.90,VIGENTE,2026-10-16,0,237052.64,194847.90
-RV,1801482.46,10,531210.60,VIGENTE,2026-10-16,265605.30,1535877.16,265605.30
-RV,43775.87,8,30603.11,VIGENTE,2026-10-16,15301.56,28474.32,15301.56
-RV,3069476.83,12,1522485.52,VIGENTE,2026-10-16,761242.76,2308234.07,761242.76
-RV,1441800.37,12,347304.39,VIGENTE,2026-10-16,173652.20,1268148.18,173652.20
-RV,626199.50,1,203772.86,VIGENTE,2026-10-16,0,626199.50,203772.86
-RV,247295.66,12,69211.80,VIGENTE,2026-10-16,34605.90,212689.76,34605.90
-RV,248344.28,1,59249.11,VIGENTE,2026-10-16,0,248344.28,59249.11
-RV,1435496.36,12,760348.71,VIGENTE,2026-10-16,380174.36,1055322.01,380174.36
-RV,1343246.38,12,539233.93,VIGENTE,2026-10-16,269616.97,1073629.41,269616.97
-RV,2027595.48,1,1393435.76,VIGENTE,2026-10-16,0,2027595.48,1393435.76
-RV,2351624.45,12,762193.37,VIGENTE,2026-10-16,381096.69,1970527.76,381096.69
-RV,486245.95,12,316495.14,VIGENTE,2026-10-16,158247.57,327998.38,158247.57
-RV,583353.43,6,88453.94,VIGENTE,2026-10-16,44226.97,539126.46,44226.97
-RV,361814.03,12,109176.18,VIGENTE,2026-10-16,54588.09,307225.94,54588.09
-RV,1256241.96,1,912953.18,VIGENTE,2026-10-16,0,1256241.96,912953.18
-RV,27728.80,1,9754.83,VIGENTE,2026-10-16,0,27728.80,9754.83
-RV,956836.17,1,521683.30,VIGENTE,2026-10-16,0,956836.17,521683.30
-RV,1894569.74,12,614055.73,VIGENTE,2026-10-16,307027.87,1587541.88,307027.87
-RV,2362954.05,12,640987.81,VIGENTE,2026-10-16,320493.91,2042460.14,320493.91
-RV,649570.60,1,154972.28,VIGENTE,2026-10-16,0,649570.60,154972.28
-RV,1280043.99,12,338447.19,VIGENTE,2026-10-16,169223.60,1110820.40,169223.60
-RV,258283.44,1,209445.25,VIGENTE,2026-10-16,0,258283.44,209445.25
-RV,111528.02,1,35798.52,VIGENTE,2026-10-16,0,111528.02,35798.52
-RV,297634.76,1,59159.63,VIGENTE,2026-10-16,0,297634.76,59159.63
-RV,1265165.44,12,315626.85,VIGENTE,2026-10-16,157813.43,1107352.02,157813.43
-RV,16362.46,1,6861.72,VIGENTE,2026-10-16,0,16362.46,6861.72
-RV,111105.11,1,23742.13,VIGENTE,2026-10-16,0,111105.11,23742.13
-RV,541973.32,1,160643.77,VIGENTE,2026-10-16,0,541973.32,160643.77
-RV,596095.00,1,142214.25,VIGENTE,2026-10-16,0,596095.00,142214.25
-RV,1725909.55,12,898790.94,VIGENTE,2026-10-16,449395.47,1276514.08,449395.47
-RV,1201396.29,12,285223.97,VIGENTE,2026-10-16,142611.99,1058784.31,142611.99
-RV,731259.28,12,426222.62,VIGENTE,2026-10-16,213111.31,518147.97,213111.31
-RV,428526.88,1,127017.63,VIGENTE,2026-10-16,0,428526.88,127017.63
-RV,191834.00,1,171081.13,VIGENTE,2026-10-16,0,191834.00,171081.13
-RV,2420698.69,6,624896.57,VIGENTE,2026-10-16,312448.29,2108250.41,312448.29
-RV,369440.82,12,219406.98,VIGENTE,2026-10-16,109703.49,259737.33,109703.49
-RV,425650.76,12,196411.87,VIGENTE,2026-10-16,98205.94,327444.83,98205.94
-RV,277242.22,12,71569.29,VIGENTE,2026-10-16,35784.65,241457.57,35784.65
-RV,219645.17,1,154607.66,VIGENTE,2026-10-16,0,219645.17,154607.66
-RV,1199628.87,12,181899.85,VIGENTE,2026-10-16,90949.93,1108678.95,90949.93
-RV,1398594.39,12,367754.54,VIGENTE,2026-10-16,183877.27,1214717.12,183877.27
-RV,767333.49,12,460496.57,VIGENTE,2026-10-16,230248.29,537085.21,230248.29
-RV,610379.63,12,92551.93,VIGENTE,2026-10-16,46275.97,564103.67,46275.97
-RV,430369.94,1,115102.58,VIGENTE,2026-10-16,0,430369.94,115102.58
-RV,41314.63,1,36748.15,VIGENTE,2026-10-16,0,41314.63,36748.15
-RV,5272231.03,12,1964086.04,VIGENTE,2026-10-16,982043.02,4290188.01,982043.02
-RV,239239.14,1,70911.75,VIGENTE,2026-10-16,0,239239.14,70911.75
-RV,4279324.34,1,1272680.36,VIGENTE,2026-10-16,0,4279324.34,1272680.36
-RV,107299.24,12,34345.22,VIGENTE,2026-10-16,17172.61,90126.63,17172.61
-RV,143790.49,1,28320.11,VIGENTE,2026-10-16,0,143790.49,28320.11
-RV,347819.61,12,63480.53,VIGENTE,2026-10-16,31740.27,316079.35,31740.27
-RV,514600.97,12,109687.29,VIGENTE,2026-10-16,54843.65,459757.32,54843.65
-RV,408792.26,12,96435.73,VIGENTE,2026-10-16,48217.87,360574.40,48217.87
-RV,1500314.99,1,983585.82,VIGENTE,2026-10-16,0,1500314.99,983585.82
-RV,404337.40,12,111182.81,VIGENTE,2026-10-16,55591.41,348745.99,55591.41
-RV,1050011.46,1,570016.43,VIGENTE,2026-10-16,0,1050011.46,570016.43
-RV,36674.89,7,5561.02,VIGENTE,2026-10-16,2780.51,33894.38,2780.51
-RV,32978.70,7,5000.56,VIGENTE,2026-10-16,2500.28,30478.42,2500.28
-RV,22916.91,4,3474.89,VIGENTE,2026-10-16,1737.45,21179.47,1737.45
-RV,667087.57,1,456188.97,VIGENTE,2026-10-16,0,667087.57,456188.97
-RV,1260169.34,1,954119.48,VIGENTE,2026-10-16,0,1260169.34,954119.48
-RV,101139.12,12,15335.74,VIGENTE,2026-10-16,7667.87,93471.25,7667.87
-RV,3268501.25,12,914770.88,VIGENTE,2026-10-16,457385.44,2811115.81,457385.44
-RV,2485023.24,12,1092734.76,VIGENTE,2026-10-16,546367.38,1938655.86,546367.38
-RV,73910.46,1,21907.46,VIGENTE,2026-10-16,0,73910.46,21907.46
-RV,189929.16,1,112096.43,VIGENTE,2026-10-16,0,189929.16,112096.43
-RV,2445321.90,12,640318.70,VIGENTE,2026-10-16,320159.35,2125162.55,320159.35
-RV,366933.43,1,386663.69,VIGENTE,2026-10-16,0,366933.43,386663.69
-RV,2737257.60,1,732080.39,VIGENTE,2026-10-16,0,2737257.60,732080.39
-RV,485752.31,4,103538.19,VIGENTE,2026-10-16,51769.10,433983.21,51769.10
-RV,1757401.36,12,736694.41,VIGENTE,2026-10-16,368347.21,1389054.16,368347.21
-RV,301240.12,1,71868.81,VIGENTE,2026-10-16,0,301240.12,71868.81
-RV,120746.74,1,19810.80,VIGENTE,2026-10-16,0,120746.74,19810.80
-RV,1571041.57,1,1293883.82,VIGENTE,2026-10-16,0,1571041.57,1293883.82
-RV,119879.04,12,18177.27,VIGENTE,2026-10-16,9088.64,110790.41,9088.64
-RV,1678023.83,12,306256.00,VIGENTE,2026-10-16,153128.00,1524895.83,153128.00
-RV,1676416.25,12,414526.93,VIGENTE,2026-10-16,207263.47,1469152.79,207263.47
-RV,506168.43,12,365864.76,VIGENTE,2026-10-16,182932.38,323236.05,182932.38
-RV,1094692.28,1,292775.78,VIGENTE,2026-10-16,0,1094692.28,292775.78
-RV,1105646.85,12,615627.43,VIGENTE,2026-10-16,307813.72,797833.14,307813.72
-RV,1139499.14,1,357696.90,VIGENTE,2026-10-16,0,1139499.14,357696.90
-RV,1207833.43,12,316615.15,VIGENTE,2026-10-16,158307.58,1049525.86,158307.58
-RV,568096.38,1,259878.58,VIGENTE,2026-10-16,0,568096.38,259878.58
-RV,727534.78,1,215645.16,VIGENTE,2026-10-16,0,727534.78,215645.16
-RV,533617.14,12,65693.09,VIGENTE,2026-10-16,32846.55,500770.60,32846.55
-RV,1133422.66,12,292589.87,VIGENTE,2026-10-16,146294.94,987127.72,146294.94
-RV,1062286.86,12,264858.95,VIGENTE,2026-10-16,132429.48,929857.39,132429.48
-RV,388677.27,12,90464.10,VIGENTE,2026-10-16,45232.05,343445.22,45232.05
-RV,25049.04,1,5030.78,VIGENTE,2026-10-16,0,25049.04,5030.78
-RV,1168548.09,6,249076.24,VIGENTE,2026-10-16,124538.12,1044009.97,124538.12
-RV,3512606.79,12,906769.60,VIGENTE,2026-10-16,453384.80,3059221.99,453384.80
-RV,556015.87,12,155614.79,VIGENTE,2026-10-16,77807.40,478208.48,77807.40
-RV,650647.34,1,462350.13,VIGENTE,2026-10-16,0,650647.34,462350.13
-RV,309339.76,1,133025.59,VIGENTE,2026-10-16,0,309339.76,133025.59
-RV,529834.08,1,157540.60,VIGENTE,2026-10-16,0,529834.08,157540.60
-RV,422899.93,12,126519.29,VIGENTE,2026-10-16,63259.65,359640.29,63259.65
-RV,631795.96,12,425756.21,VIGENTE,2026-10-16,212878.11,418917.86,212878.11
-RV,1098004.10,12,284023.06,VIGENTE,2026-10-16,142011.53,955992.57,142011.53
-RV,1065423.20,1,557042.39,VIGENTE,2026-10-16,0,1065423.20,557042.39
-RV,2606887.47,1,2611577.81,VIGENTE,2026-10-16,0,2606887.47,2611577.81
-RV,1678075.84,12,476499.50,VIGENTE,2026-10-16,238249.75,1439826.09,238249.75
-RV,1182628.70,12,741974.42,VIGENTE,2026-10-16,370987.21,811641.49,370987.21
-RV,62263.28,1,14854.56,VIGENTE,2026-10-16,0,62263.28,14854.56
-RV,1040433.96,6,375614.19,VIGENTE,2026-10-16,187807.10,852626.87,187807.10
-RV,2670817.37,1,1039185.88,VIGENTE,2026-10-16,0,2670817.37,1039185.88
-RV,2396443.82,12,911677.64,VIGENTE,2026-10-16,455838.82,1940605.00,455838.82
-RV,103507.04,5,22062.55,VIGENTE,2026-10-16,11031.28,92475.77,11031.28
-RV,281794.96,12,72566.05,VIGENTE,2026-10-16,36283.03,245511.94,36283.03
-RV,860259.86,1,269333.60,VIGENTE,2026-10-16,0,860259.86,269333.60
-RV,25940.94,1,22638.45,VIGENTE,2026-10-16,0,25940.94,22638.45
-RV,3561785.53,12,1371991.15,VIGENTE,2026-10-16,685995.58,2875789.96,685995.58
-RV,130275.64,1,62696.39,VIGENTE,2026-10-16,0,130275.64,62696.39
-RV,154159.58,1,49873.63,VIGENTE,2026-10-16,0,154159.58,49873.63
-RV,2206953.42,12,464496.27,VIGENTE,2026-10-16,232248.14,1974705.29,232248.14
-RV,258853.72,1,81042.96,VIGENTE,2026-10-16,0,258853.72,81042.96
-RV,1719148.15,6,443793.27,VIGENTE,2026-10-16,221896.64,1497251.52,221896.64
-RV,546927.57,12,177266.65,VIGENTE,2026-10-16,88633.33,458294.24,88633.33
-RV,432436.92,1,316424.98,VIGENTE,2026-10-16,0,432436.92,316424.98
-RV,2905262.28,1,1878184.73,VIGENTE,2026-10-16,0,2905262.28,1878184.73
-RV,186712.00,1,44545.10,VIGENTE,2026-10-16,0,186712.00,44545.10
-RV,1420048.34,12,368800.59,VIGENTE,2026-10-16,184400.30,1235648.05,184400.30
-RV,416798.32,1,99438.29,VIGENTE,2026-10-16,0,416798.32,99438.29
-RV,176909.88,1,35530.11,VIGENTE,2026-10-16,0,176909.88,35530.11
-RV,2256100.21,10,586174.33,VIGENTE,2026-10-16,293087.17,1963013.05,293087.17
-RV,348054.72,1,324194.39,VIGENTE,2026-10-16,0,348054.72,324194.39
-RV,1322671.26,1,697788.15,VIGENTE,2026-10-16,0,1322671.26,697788.15
-RV,361066.28,6,76961.35,VIGENTE,2026-10-16,38480.68,322585.61,38480.68
-RV,674035.64,1,282626.66,VIGENTE,2026-10-16,0,674035.64,282626.66
-RV,510389.89,1,471088.71,VIGENTE,2026-10-16,0,510389.89,471088.71
-RV,783611.18,12,341802.73,VIGENTE,2026-10-16,170901.37,612709.82,170901.37
-RV,308106.87,1,61879.37,VIGENTE,2026-10-16,0,308106.87,61879.37
-RV,985190.44,1,299282.41,VIGENTE,2026-10-16,0,985190.44,299282.41
-RV,1739059.90,1,1038381.00,VIGENTE,2026-10-16,0,1739059.90,1038381.00
-RV,806376.02,1,239014.12,VIGENTE,2026-10-16,0,806376.02,239014.12
-RV,133682.94,3,20270.35,VIGENTE,2026-10-16,10135.18,123547.77,10135.18
-RV,641252.56,1,190070.66,VIGENTE,2026-10-16,0,641252.56,190070.66
-RV,418913.04,1,124168.05,VIGENTE,2026-10-16,0,418913.04,124168.05
-RV,1373618.05,12,438400.68,VIGENTE,2026-10-16,219200.34,1154417.71,219200.34
-RV,2336984.76,1,979909.88,VIGENTE,2026-10-16,0,2336984.76,979909.88
-RV,550552.46,1,163186.66,VIGENTE,2026-10-16,0,550552.46,163186.66
-RV,144310.48,1,34429.09,VIGENTE,2026-10-16,0,144310.48,34429.09
-RV,154617.21,1,43821.55,VIGENTE,2026-10-16,0,154617.21,43821.55
-RV,181255.28,1,43243.25,VIGENTE,2026-10-16,0,181255.28,43243.25
-RV,57956.70,1,11639.86,VIGENTE,2026-10-16,0,57956.70,11639.86
-RV,43597.60,1,10401.36,VIGENTE,2026-10-16,0,43597.60,10401.36
-RV,1084728.38,1,642516.93,VIGENTE,2026-10-16,0,1084728.38,642516.93
-RV,68116.25,1,18851.28,VIGENTE,2026-10-16,0,68116.25,18851.28
-RV,1332829.17,1,340854.28,VIGENTE,2026-10-16,0,1332829.17,340854.28
-RV,4638998.65,1,1828342.71,VIGENTE,2026-10-16,0,4638998.65,1828342.71
-RV,124272.48,1,24958.55,VIGENTE,2026-10-16,0,124272.48,24958.55
-RV,1734111.43,12,982391.05,VIGENTE,2026-10-16,491195.53,1242915.90,491195.53
-RV,948181.17,1,190430.18,VIGENTE,2026-10-16,0,948181.17,190430.18
-RV,1621173.18,1,325592.10,VIGENTE,2026-10-16,0,1621173.18,325592.10
-RV,337903.46,1,55439.48,VIGENTE,2026-10-16,0,337903.46,55439.48
-RV,1032859.68,12,289653.22,VIGENTE,2026-10-16,144826.61,888033.07,144826.61
-RV,235841.03,1,95145.09,VIGENTE,2026-10-16,0,235841.03,95145.09
-RV,2150178.31,1,1578368.75,VIGENTE,2026-10-16,0,2150178.31,1578368.75
-RV,1241542.53,1,1051894.46,VIGENTE,2026-10-16,0,1241542.53,1051894.46
-RV,3444662.28,12,900809.90,VIGENTE,2026-10-16,450404.95,2994257.33,450404.95
-RV,2128316.96,1,1016908.84,VIGENTE,2026-10-16,0,2128316.96,1016908.84
-RV,2807381.18,12,663410.91,VIGENTE,2026-10-16,331705.46,2475675.73,331705.46
-RV,1206063.89,12,345190.12,VIGENTE,2026-10-16,172595.06,1033468.83,172595.06
-RV,590176.12,1,157842.78,VIGENTE,2026-10-16,0,590176.12,157842.78
-RV,246258.80,12,52987.19,VIGENTE,2026-10-16,26493.60,219765.21,26493.60
-RV,693267.90,12,155400.47,VIGENTE,2026-10-16,77700.24,615567.67,77700.24
-RV,1010993.68,12,215493.49,VIGENTE,2026-10-16,107746.75,903246.94,107746.75
-RV,102597.75,1,57441.46,VIGENTE,2026-10-16,0,102597.75,57441.46
-RV,93938.68,12,24250.02,VIGENTE,2026-10-16,12125.01,81813.67,12125.01
-RV,356438.88,12,92013.68,VIGENTE,2026-10-16,46006.84,310432.04,46006.84
-RV,352038.09,1,128822.38,VIGENTE,2026-10-16,0,352038.09,128822.38
-RV,1016121.60,1,421200.76,VIGENTE,2026-10-16,0,1016121.60,421200.76
-RV,2847322.76,12,810336.91,VIGENTE,2026-10-16,405168.46,2442154.30,405168.46
-RV,326416.92,1,77875.41,VIGENTE,2026-10-16,0,326416.92,77875.41
-RV,421890.00,1,157723.87,VIGENTE,2026-10-16,0,421890.00,157723.87
-RV,337730.54,1,100601.94,VIGENTE,2026-10-16,0,337730.54,100601.94
-RV,438326.03,1,367340.17,VIGENTE,2026-10-16,0,438326.03,367340.17
-RV,417791.74,1,135954.47,VIGENTE,2026-10-16,0,417791.74,135954.47
-RV,246119.05,12,80068.15,VIGENTE,2026-10-16,40034.08,206084.97,40034.08
-RV,2728925.44,1,2016095.11,VIGENTE,2026-10-16,0,2728925.44,2016095.11
-RV,160584.95,1,44442.15,VIGENTE,2026-10-16,0,160584.95,44442.15
-RV,665903.68,1,158868.97,VIGENTE,2026-10-16,0,665903.68,158868.97
-RV,1878480.25,1,1158970.18,VIGENTE,2026-10-16,0,1878480.25,1158970.18
-RV,576899.22,1,172730.82,VIGENTE,2026-10-16,0,576899.22,172730.82
-RV,279251.23,1,74685.82,VIGENTE,2026-10-16,0,279251.23,74685.82
-RV,1131863.13,12,458707.95,VIGENTE,2026-10-16,229353.98,902509.15,229353.98
-RV,1491222.34,1,879522.77,VIGENTE,2026-10-16,0,1491222.34,879522.77
-RV,683238.56,12,338668.35,VIGENTE,2026-10-16,169334.18,513904.39,169334.18
-RV,1555355.51,1,617356.30,VIGENTE,2026-10-16,0,1555355.51,617356.30
-RV,507459.91,12,130999.34,VIGENTE,2026-10-16,65499.67,441960.24,65499.67
-RV,372874.94,1,142052.84,VIGENTE,2026-10-16,0,372874.94,142052.84
-RV,1026098.75,12,277726.57,VIGENTE,2026-10-16,138863.29,887235.47,138863.29
-RV,559411.09,12,68868.56,VIGENTE,2026-10-16,34434.28,524976.81,34434.28
-RV,725978.31,12,191415.46,VIGENTE,2026-10-16,95707.73,630270.58,95707.73
-RV,190492.02,1,56462.85,VIGENTE,2026-10-16,0,190492.02,56462.85
-RV,1613527.88,1,1170987.86,VIGENTE,2026-10-16,0,1613527.88,1170987.86
-RV,2111325.99,1,1488472.93,VIGENTE,2026-10-16,0,2111325.99,1488472.93
-RV,159940.09,1,42776.03,VIGENTE,2026-10-16,0,159940.09,42776.03
-RV,1023573.97,10,354804.25,VIGENTE,2026-10-16,177402.13,846171.85,177402.13
-RV,519933.48,1,143892.44,VIGENTE,2026-10-16,0,519933.48,143892.44
-RV,4269276.35,1,2648751.08,VIGENTE,2026-10-16,0,4269276.35,2648751.08
-RV,1497599.95,1,1009849.29,VIGENTE,2026-10-16,0,1497599.95,1009849.29
-RV,340875.16,1,81324.80,VIGENTE,2026-10-16,0,340875.16,81324.80
-RV,663534.86,1,196675.24,VIGENTE,2026-10-16,0,663534.86,196675.24
-RV,3157862.95,1,864366.56,VIGENTE,2026-10-16,0,3157862.95,864366.56
-RV,250059.09,12,37916.49,VIGENTE,2026-10-16,18958.25,231100.85,18958.25
-RV,64380.76,1,19183.76,VIGENTE,2026-10-16,0,64380.76,19183.76
-RV,213252.40,1,168495.26,VIGENTE,2026-10-16,0,213252.40,168495.26
-RV,1967387.35,1,526178.35,VIGENTE,2026-10-16,0,1967387.35,526178.35
-RV,3803596.10,1,1433857.75,VIGENTE,2026-10-16,0,3803596.10,1433857.75
-RV,367365.86,12,124726.76,VIGENTE,2026-10-16,62363.38,305002.48,62363.38
-RV,1823539.80,1,643547.07,VIGENTE,2026-10-16,0,1823539.80,643547.07
-RV,336473.92,1,327333.37,VIGENTE,2026-10-16,0,336473.92,327333.37
-RV,1624619.93,1,775521.51,VIGENTE,2026-10-16,0,1624619.93,775521.51
-RV,1656575.10,12,353099.29,VIGENTE,2026-10-16,176549.65,1480025.46,176549.65
-RV,178607.70,12,21988.22,VIGENTE,2026-10-16,10994.11,167613.59,10994.11
-RV,1478831.31,12,224235.34,VIGENTE,2026-10-16,112117.67,1366713.64,112117.67
-RV,997607.71,6,182073.32,VIGENTE,2026-10-16,91036.66,906571.05,91036.66
-RV,130458.12,1,31124.24,VIGENTE,2026-10-16,0,130458.12,31124.24
-RV,485898.18,12,170099.64,VIGENTE,2026-10-16,85049.82,400848.36,85049.82
-RV,319167.38,12,139217.37,VIGENTE,2026-10-16,69608.69,249558.70,69608.69
-RV,391537.16,1,475841.33,VIGENTE,2026-10-16,0,391537.16,475841.33
-RV,4960213.59,1,3059960.14,VIGENTE,2026-10-16,0,4960213.59,3059960.14
-RV,579366.80,1,409496.00,VIGENTE,2026-10-16,0,579366.80,409496.00
-RV,2743642.17,1,1194349.12,VIGENTE,2026-10-16,0,2743642.17,1194349.12
-RV,27550.39,1,28354.89,VIGENTE,2026-10-16,0,27550.39,28354.89
-RV,354864.90,1,105183.83,VIGENTE,2026-10-16,0,354864.90,105183.83
-RV,151270.55,1,54793.87,VIGENTE,2026-10-16,0,151270.55,54793.87
-RV,193559.70,1,188402.39,VIGENTE,2026-10-16,0,193559.70,188402.39
-RV,248009.02,12,60293.71,VIGENTE,2026-10-16,30146.86,217862.16,30146.86
-RV,207596.28,1,184778.02,VIGENTE,2026-10-16,0,207596.28,184778.02
-RV,2121095.63,12,810430.19,VIGENTE,2026-10-16,405215.10,1715880.54,405215.10
-RV,4467713.01,12,2242304.43,VIGENTE,2026-10-16,1121152.22,3346560.80,1121152.22
-RV,29433.21,1,24937.63,VIGENTE,2026-10-16,0,29433.21,24937.63
-RV,966863.32,1,264682.06,VIGENTE,2026-10-16,0,966863.32,264682.06
-RV,544196.92,1,129832.59,VIGENTE,2026-10-16,0,544196.92,129832.59
-RV,860874.60,1,396643.23,VIGENTE,2026-10-16,0,860874.60,396643.23
-RV,456955.38,1,143065.42,VIGENTE,2026-10-16,0,456955.38,143065.42
-RV,1601769.28,12,413492.25,VIGENTE,2026-10-16,206746.13,1395023.16,206746.13
-RV,251874.44,12,38191.74,VIGENTE,2026-10-16,19095.87,232778.57,19095.87
-RV,152852.85,12,23177.09,VIGENTE,2026-10-16,11588.55,141264.31,11588.55
-RV,3940136.98,1,1828749.87,VIGENTE,2026-10-16,0,3940136.98,1828749.87
-RV,229196.72,1,199019.02,VIGENTE,2026-10-16,0,229196.72,199019.02
-RV,144338.01,1,18934.84,VIGENTE,2026-10-16,0,144338.01,18934.84
-RV,1911244.84,1,1536808.44,VIGENTE,2026-10-16,0,1911244.84,1536808.44
-RV,1937591.13,12,710989.84,VIGENTE,2026-10-16,355494.92,1582096.21,355494.92
-RV,1507678.60,1,446883.92,VIGENTE,2026-10-16,0,1507678.60,446883.92
-RV,267094.29,1,174456.21,VIGENTE,2026-10-16,0,267094.29,174456.21
-RV,1207833.43,12,316615.15,VIGENTE,2026-10-16,158307.58,1049525.86,158307.58
-RV,59374.88,1,26649.94,VIGENTE,2026-10-16,0,59374.88,26649.94
-RV,173795.02,1,51513.76,VIGENTE,2026-10-16,0,173795.02,51513.76
-RV,4303381.26,12,917266.52,VIGENTE,2026-10-16,458633.26,3844748.00,458633.26
-RV,210309.17,1,60205.54,VIGENTE,2026-10-16,0,210309.17,60205.54
-RV,419011.98,1,124197.38,VIGENTE,2026-10-16,0,419011.98,124197.38
-RV,851851.14,1,252493.19,VIGENTE,2026-10-16,0,851851.14,252493.19
-RV,483080.17,1,227092.73,VIGENTE,2026-10-16,0,483080.17,227092.73
-RV,477959.70,1,141669.79,VIGENTE,2026-10-16,0,477959.70,141669.79
-RV,80766.04,1,36251.19,VIGENTE,2026-10-16,0,80766.04,36251.19
-RV,249579.18,1,50124.82,VIGENTE,2026-10-16,0,249579.18,50124.82
-RV,387208.75,12,103752.42,VIGENTE,2026-10-16,51876.21,335332.54,51876.21
-RV,3940118.44,1,1345089.22,VIGENTE,2026-10-16,0,3940118.44,1345089.22
-RV,1321689.42,6,484498.16,VIGENTE,2026-10-16,242249.08,1079440.34,242249.08
-RV,144340.41,6,41298.83,VIGENTE,2026-10-16,20649.42,123691.00,20649.42
-RV,1881136.35,12,515973.28,VIGENTE,2026-10-16,257986.64,1623149.71,257986.64
-RV,323826.38,1,94069.78,VIGENTE,2026-10-16,0,323826.38,94069.78
-RV,2540561.32,12,1298716.54,VIGENTE,2026-10-16,649358.27,1891203.05,649358.27
-RV,919233.32,1,439403.64,VIGENTE,2026-10-16,0,919233.32,439403.64
-RV,197655.48,1,144017.55,VIGENTE,2026-10-16,0,197655.48,144017.55
-RV,634903.50,1,303490.86,VIGENTE,2026-10-16,0,634903.50,303490.86
-RV,2427384.80,12,1210845.33,VIGENTE,2026-10-16,605422.67,1821962.13,605422.67
-RV,1046332.06,1,453985.90,VIGENTE,2026-10-16,0,1046332.06,453985.90
-RV,142838.36,1,180698.71,VIGENTE,2026-10-16,0,142838.36,180698.71
-RV,57601.35,1,47058.10,VIGENTE,2026-10-16,0,57601.35,47058.10
-RV,399096.24,1,95214.99,VIGENTE,2026-10-16,0,399096.24,95214.99
-RV,580676.01,1,529596.31,VIGENTE,2026-10-16,0,580676.01,529596.31
-RV,118714.66,1,37741.29,VIGENTE,2026-10-16,0,118714.66,37741.29
-RV,1988543.84,12,953971.93,VIGENTE,2026-10-16,476985.97,1511557.88,476985.97
-RV,487993.69,1,279854.10,VIGENTE,2026-10-16,0,487993.69,279854.10
-RV,1081789.15,12,230583.56,VIGENTE,2026-10-16,115291.78,966497.37,115291.78
-RV,969654.53,12,176971.58,VIGENTE,2026-10-16,88485.79,881168.74,88485.79
-RV,950235.75,12,550965.33,VIGENTE,2026-10-16,275482.67,674753.09,275482.67
-RV,1697247.16,1,711509.68,VIGENTE,2026-10-16,0,1697247.16,711509.68
-RV,2717881.36,12,820111.70,VIGENTE,2026-10-16,410055.85,2307825.51,410055.85
-RV,351322.68,1,400405.86,VIGENTE,2026-10-16,0,351322.68,400405.86
-RV,1619037.09,1,1092335.02,VIGENTE,2026-10-16,0,1619037.09,1092335.02
-RV,346304.58,1,71101.58,VIGENTE,2026-10-16,0,346304.58,71101.58
-RV,628584.30,12,114722.87,VIGENTE,2026-10-16,57361.44,571222.87,57361.44
-RV,314847.58,1,93322.50,VIGENTE,2026-10-16,0,314847.58,93322.50
-RV,1167964.64,1,563580.71,VIGENTE,2026-10-16,0,1167964.64,563580.71
-RV,785891.52,1,329528.41,VIGENTE,2026-10-16,0,785891.52,329528.41
-RV,648395.28,12,118338.57,VIGENTE,2026-10-16,59169.29,589226.00,59169.29
-RV,2617842.38,1,775942.35,VIGENTE,2026-10-16,0,2617842.38,775942.35
-RV,2052567.38,12,488793.16,VIGENTE,2026-10-16,244396.58,1808170.80,244396.58
-RV,2258502.02,1,669431.95,VIGENTE,2026-10-16,0,2258502.02,669431.95
-RV,1237868.24,1,450776.59,VIGENTE,2026-10-16,0,1237868.24,450776.59
-RV,2098856.19,12,1000083.81,VIGENTE,2026-10-16,500041.91,1598814.29,500041.91
-RV,149698.06,6,18429.18,VIGENTE,2026-10-16,9214.59,140483.47,9214.59
-RV,2714555.64,12,1198908.85,VIGENTE,2026-10-16,599454.43,2115101.22,599454.43
-RV,1027740.37,12,126524.12,VIGENTE,2026-10-16,63262.06,964478.31,63262.06
-RV,1644546.63,12,394241.79,VIGENTE,2026-10-16,197120.90,1447425.73,197120.90
-RV,3453146.36,1,1086124.75,VIGENTE,2026-10-16,0,3453146.36,1086124.75
-RV,143725.84,1,55592.65,VIGENTE,2026-10-16,0,143725.84,55592.65
-RV,2945811.98,1,1351843.08,VIGENTE,2026-10-16,0,2945811.98,1351843.08
-RV,483066.15,1,214684.01,VIGENTE,2026-10-16,0,483066.15,214684.01
-RV,305256.91,12,65065.57,VIGENTE,2026-10-16,32532.79,272724.13,32532.79
-RV,440565.49,12,123303.15,VIGENTE,2026-10-16,61651.58,378913.92,61651.58
-RV,283620.31,12,60453.71,VIGENTE,2026-10-16,30226.86,253393.46,30226.86
-RV,932524.11,1,202414.13,VIGENTE,2026-10-16,0,932524.11,202414.13
-RV,3534528.20,12,1736830.88,VIGENTE,2026-10-16,868415.44,2666112.76,868415.44
-RV,393660.32,9,82583.60,VIGENTE,2026-10-16,41291.80,352368.52,41291.80
-RV,3946902.46,12,1954962.73,VIGENTE,2026-10-16,977481.37,2969421.09,977481.37
-RV,1450509.98,12,352634.87,VIGENTE,2026-10-16,176317.44,1274192.55,176317.44
-RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
-
-    // Load Data via HTTP Fetch (with cache busting and auto-fallback)
+    // Load Data via HTTP Fetch (with cache busting)
     async function loadDataFromUrl(url) {
-      showLoading(true, 'Consultando archivo: ' + url);
+      updateStatus(`Cargando archivo: ${url}...`);
 
       // Si se abre localmente mediante protocolo file://, los navegadores bloquean fetch por CORS
       if (window.location.protocol === 'file:') {
-        console.warn('Abierto bajo protocolo file://. Usando dataset inicial incorporado.');
-        parseCsvText(EMBEDDED_SAMPLE_DATA, 'data.csv (modo local)');
-        updateStatus('Abierto en modo local. Podés arrastrar y soltar un archivo Excel o CSV nuevo aquí para actualizar.', false);
-        showLoading(false);
-        return;
+        console.warn('Abierto bajo protocolo file://. Intentando fetch o fallback.');
       }
 
       try {
-        // Cache buster para GitHub Pages
+        // Cache buster para que siempre descargue la última versión de GitHub Pages
         const fetchUrl = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`;
         const response = await fetch(fetchUrl);
 
         if (!response.ok) {
-          // Si falló data.csv, intentar automáticamente con data.xlsx si no era ya xlsx
-          if (url === './data.csv') {
-            console.log('data.csv no encontrado, intentando data.xlsx...');
-            return loadDataFromUrl('./data.xlsx');
+          // Si falló data.xlsx, intentar automáticamente con data.csv
+          if (url.endsWith('.xlsx')) {
+            console.log('data.xlsx no encontrado, intentando con data.csv...');
+            return loadDataFromUrl('./data.csv');
           }
           throw new Error(`Error HTTP ${response.status}: No se pudo descargar ${url}`);
         }
@@ -1330,14 +581,34 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
         }
       } catch (err) {
         console.warn('Fallo al cargar por URL:', err);
-        // Fallback a datos precargados si no hay conexión o no existe el archivo aún
-        parseCsvText(EMBEDDED_SAMPLE_DATA, 'data.csv (respaldo inicial)');
-        showLoading(false);
-        updateStatus(`No se pudo descargar "${url}" (revisá que esté subido al repositorio). Mostrando datos de respaldo. También podés arrastrar tu Excel/CSV aquí.`, true);
+        // Si falló la carga de data.xlsx por URL, intentar data.csv
+        if (url.endsWith('.xlsx')) {
+          return loadDataFromUrl('./data.csv');
+        }
+        updateStatus(`No se pudo descargar "${url}". Asegurate de que el archivo esté subido a tu repositorio de GitHub.`, true);
       }
     }
 
-    // CSV parser
+    // Excel parser (SheetJS)
+    function parseExcelBuffer(buffer, sourceName) {
+      try {
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        if (json && json.length > 0) {
+          processLoadedData(json, sourceName);
+        } else {
+          updateStatus('La hoja de cálculo está vacía.', true);
+        }
+      } catch (e) {
+        console.error('Error al procesar Excel:', e);
+        // Intentar fallback a data.csv
+        loadDataFromUrl('./data.csv');
+      }
+    }
+
+    // CSV parser (PapaParse)
     function parseCsvText(csvText, sourceName) {
       Papa.parse(csvText, {
         header: true,
@@ -1356,40 +627,23 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       });
     }
 
-    // Excel parser
-    function parseExcelBuffer(buffer, sourceName) {
-      try {
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-        if (json && json.length > 0) {
-          processLoadedData(json, sourceName);
-        } else {
-          updateStatus('La hoja de cálculo está vacía.', true);
-        }
-      } catch (e) {
-        updateStatus('Error al leer el archivo Excel: ' + e.message, true);
-      }
-    }
-
     // Process & Initialize Dashboard
     function processLoadedData(dataRows, sourceName) {
       rawDataset = cleanAndNormalizeData(dataRows);
       
       if (rawDataset.length === 0) {
         updateStatus('No se encontraron registros válidos en el archivo.', true);
-        showLoading(false);
         return;
       }
 
-      document.getElementById('source-name').textContent = sourceName.split('/').pop().split('\\').pop();
-      document.getElementById('last-update-time').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-AR');
-      updateStatus(`Cargados exitosamente ${numberFormatter.format(rawDataset.length)} registros de moratoria.`);
+      const cleanFileName = sourceName.split('/').pop().split('\\').pop();
+      document.getElementById('source-name').textContent = cleanFileName;
+      document.getElementById('status-update-label').textContent = 'Última lectura: ' + new Date().toLocaleTimeString('es-AR');
+      document.getElementById('records-summary-label').textContent = `${numberFormatter.format(rawDataset.length)} registros procesados`;
+      updateStatus(`Datos sincronizados con éxito desde ${cleanFileName}.`);
 
       populateFilterOptions();
       applyFilters();
-      showLoading(false);
     }
 
     // Populate filter dropdowns based on real data
@@ -1429,7 +683,6 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       const cuotasVal = document.getElementById('filter-cuotas').value;
       const desdeVal = document.getElementById('filter-fecha-desde').value;
       const hastaVal = document.getElementById('filter-fecha-hasta').value;
-      const searchVal = document.getElementById('table-search').value.toLowerCase().trim();
 
       filteredDataset = rawDataset.filter(item => {
         // Impuesto
@@ -1444,32 +697,24 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
         if (desdeVal && item.FechaConsolidacion && item.FechaConsolidacion < desdeVal) return false;
         if (hastaVal && item.FechaConsolidacion && item.FechaConsolidacion > hastaVal) return false;
 
-        // Search in table
-        if (searchVal) {
-          const matchStr = `${item.impuesto} ${item.Estado} ${item.ctas} ${item.FechaConsolidacion}`.toLowerCase();
-          if (!matchStr.includes(searchVal)) return false;
-        }
-
         return true;
       });
 
       // Update badge
-      const isFiltered = (impuestoVal !== 'ALL' || cuotasVal !== 'ALL' || desdeVal || hastaVal || searchVal);
+      const isFiltered = (impuestoVal !== 'ALL' || cuotasVal !== 'ALL' || desdeVal || hastaVal);
       const badge = document.getElementById('filtered-count-badge');
       if (isFiltered) {
-        badge.textContent = `${numberFormatter.format(filteredDataset.length)} de ${numberFormatter.format(rawDataset.length)} registros`;
+        badge.textContent = `${numberFormatter.format(filteredDataset.length)} de ${numberFormatter.format(rawDataset.length)} planes`;
         badge.className = 'ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200';
       } else {
-        badge.textContent = `Mostrando todos (${numberFormatter.format(rawDataset.length)})`;
+        badge.textContent = `Mostrando todos (${numberFormatter.format(rawDataset.length)} planes)`;
         badge.className = 'ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
       }
 
-      // Update KPIs & Charts & Table
-      currentPage = 1;
+      // Update KPIs & Charts
       updateKpis();
       updateCuotasCards();
       renderCharts();
-      renderTable();
     }
 
     // Update KPI Cards
@@ -1519,7 +764,6 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       const gMedioInteres = groupMedio.reduce((acc, d) => acc + d.interes_plan, 0);
       const gMedioCount = groupMedio.length;
       const gMedioPct = totalPlanes > 0 ? ((gMedioCount / totalPlanes) * 100).toFixed(1) : 0;
-      // Average monthly installment estimated across all plans in this tier
       const gMedioAvgInstallment = groupMedio.reduce((acc, d) => acc + (d.ctas > 0 ? d.TotConsolidada / d.ctas : 0), 0) / (gMedioCount || 1);
 
       document.getElementById('badge-pct-planes-medio').textContent = `${gMedioPct}% de planes`;
@@ -1613,7 +857,7 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       });
     }
 
-    // Chart 2: Impuestos (Bars - TotConsolidada & Nominal)
+    // Chart 2: Impuestos (Bars - TotConsolidada & Interes Condonado)
     function renderImpuestoDistChart() {
       const ctx = document.getElementById('chart-impuesto-dist').getContext('2d');
       if (chartImpuestoDistInstance) chartImpuestoDistInstance.destroy();
@@ -1681,7 +925,6 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       const ctx = document.getElementById('chart-cuotas-histogram').getContext('2d');
       if (chartCuotasHistoInstance) chartCuotasHistoInstance.destroy();
 
-      // Counts from 1 to 12
       const cuotaLabels = ['1 cuota', '2 ctas', '3 ctas', '4 ctas', '5 ctas', '6 ctas', '7 ctas', '8 ctas', '9 ctas', '10 ctas', '11 ctas', '12 ctas'];
       const counts = Array(12).fill(0);
       const amounts = Array(12).fill(0);
@@ -1693,7 +936,6 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
         }
       });
 
-      // Colors: 1 = emerald, 2-11 = sky, 12 = purple
       const colors = counts.map((_, idx) => {
         if (idx === 0) return '#10b981';
         if (idx === 11) return '#a855f7';
@@ -1748,7 +990,6 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       const ctx = document.getElementById('chart-timeline').getContext('2d');
       if (chartTimelineInstance) chartTimelineInstance.destroy();
 
-      // Aggregate by FechaConsolidacion
       const dateMap = {};
       filteredDataset.forEach(d => {
         const f = d.FechaConsolidacion || 'Sin fecha';
@@ -1763,7 +1004,6 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       const dailyMontos = sortedDates.map(f => dateMap[f].monto);
       const dailyPlanes = sortedDates.map(f => dateMap[f].planes);
 
-      // Cumulative calculation
       let runningMonto = 0;
       const cumulativeMontos = dailyMontos.map(m => (runningMonto += m));
 
@@ -1847,131 +1087,6 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       });
     }
 
-    // Sort Table
-    function sortTable(column) {
-      if (sortColumn === column) {
-        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-      } else {
-        sortColumn = column;
-        sortDirection = 'desc';
-      }
-      renderTable();
-    }
-
-    // Render Table
-    function renderTable() {
-      const tbody = document.getElementById('table-body');
-      tbody.innerHTML = '';
-
-      if (filteredDataset.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="9" class="py-8 text-center text-slate-400">
-              <i class="fa-solid fa-folder-open text-3xl mb-2 block"></i>
-              No se encontraron registros con los filtros seleccionados
-            </td>
-          </tr>
-        `;
-        document.getElementById('table-pagination-info').textContent = 'Mostrando 0 de 0 registros';
-        document.getElementById('btn-prev-page').disabled = true;
-        document.getElementById('btn-next-page').disabled = true;
-        return;
-      }
-
-      // Sort
-      const sorted = [...filteredDataset].sort((a, b) => {
-        let valA = a[sortColumn];
-        let valB = b[sortColumn];
-        if (typeof valA === 'string') {
-          return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-        }
-        return sortDirection === 'asc' ? valA - valB : valB - valA;
-      });
-
-      // Pagination
-      const totalPages = Math.ceil(sorted.length / pageSize);
-      if (currentPage > totalPages) currentPage = totalPages;
-      if (currentPage < 1) currentPage = 1;
-
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = Math.min(startIndex + pageSize, sorted.length);
-      const pageRows = sorted.slice(startIndex, endIndex);
-
-      pageRows.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50/80 transition';
-
-        let cuotaBadgeClass = 'badge-medio';
-        let cuotaIcon = 'fa-calendar-days';
-        if (item.ctas === 1) {
-          cuotaBadgeClass = 'badge-contado';
-          cuotaIcon = 'fa-bolt';
-        } else if (item.ctas === 12) {
-          cuotaBadgeClass = 'badge-largo';
-          cuotaIcon = 'fa-clock-rotate-left';
-        }
-
-        tr.innerHTML = `
-          <td class="py-2.5 px-4 font-semibold text-slate-800">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700">
-              ${item.impuesto}
-            </span>
-          </td>
-          <td class="py-2.5 px-4 text-right font-bold text-slate-900">${currencyFormatter.format(item.TotConsolidada)}</td>
-          <td class="py-2.5 px-4 text-center">
-            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${cuotaBadgeClass}">
-              <i class="fa-solid ${cuotaIcon} text-[9px]"></i>
-              ${item.ctas} ${item.ctas === 1 ? 'cuota' : 'cuotas'}
-            </span>
-          </td>
-          <td class="py-2.5 px-4 text-right text-slate-600">${currencyFormatter.format(item.Nominal)}</td>
-          <td class="py-2.5 px-4 text-right text-slate-600">${currencyFormatter.format(item.interes_plan)}</td>
-          <td class="py-2.5 px-4 text-right font-semibold text-emerald-600">${currencyFormatter.format(item.interes_condonado)}</td>
-          <td class="py-2.5 px-4 text-right text-slate-500">${currencyFormatter.format(item.Resarcitorios)}</td>
-          <td class="py-2.5 px-4 text-slate-600 font-mono text-[11px]">${item.FechaConsolidacion || '-'}</td>
-          <td class="py-2.5 px-4 text-center">
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${item.Estado}</span>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      // Pagination controls info
-      document.getElementById('table-pagination-info').textContent = 
-        `Mostrando registros ${numberFormatter.format(startIndex + 1)} al ${numberFormatter.format(endIndex)} de ${numberFormatter.format(sorted.length)} (Página ${currentPage} de ${totalPages})`;
-      document.getElementById('current-page-num').textContent = currentPage;
-      document.getElementById('btn-prev-page').disabled = (currentPage === 1);
-      document.getElementById('btn-next-page').disabled = (currentPage === totalPages);
-    }
-
-    // Export current filtered dataset to Excel
-    function exportToExcel() {
-      if (filteredDataset.length === 0) {
-        alert('No hay datos para exportar con los filtros actuales.');
-        return;
-      }
-
-      const exportData = filteredDataset.map(d => ({
-        'Impuesto': d.impuesto,
-        'Deuda Consolidada': d.TotConsolidada,
-        'Cuotas': d.ctas,
-        'Segmento Cuotas': d.grupoCuotas,
-        'Capital Nominal': d.Nominal,
-        'Interés en Plan': d.interes_plan,
-        'Interés Condonado': d.interes_condonado,
-        'Resarcitorios Totales': d.Resarcitorios,
-        'Fecha Consolidación': d.FechaConsolidacion,
-        'Estado': d.Estado
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Moratoria_Filtrada');
-
-      const dateStr = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(workbook, `reporte_moratoria_${dateStr}.xlsx`);
-    }
-
     // Helper status update
     function updateStatus(msg, isError = false) {
       const statusBar = document.getElementById('status-bar');
@@ -1979,109 +1094,32 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
       statusMsg.textContent = msg;
 
       if (isError) {
-        statusBar.className = 'bg-rose-50 border-b border-rose-200 text-rose-900 text-xs px-4 py-2 flex items-center justify-between transition-all';
+        statusBar.className = 'bg-rose-50 border-b border-rose-200 text-rose-900 text-xs px-4 py-2 transition-all';
       } else {
-        statusBar.className = 'bg-sky-50 border-b border-sky-200 text-sky-900 text-xs px-4 py-2 flex items-center justify-between transition-all';
+        statusBar.className = 'bg-sky-50 border-b border-sky-200 text-sky-900 text-xs px-4 py-2 transition-all';
       }
     }
 
-    function showLoading(isLoading, message = '') {
-      const icon = document.getElementById('refresh-icon');
-      if (isLoading) {
-        icon.classList.add('fa-spin');
-        if (message) updateStatus(message);
-      } else {
-        icon.classList.remove('fa-spin');
-      }
-    }
-
-    // EVENT LISTENERS INITIALIZATION
+    // INITIALIZATION
     document.addEventListener('DOMContentLoaded', () => {
-      // 1. Load initial data
+      // 1. Cargar archivo Excel automáticamente
       loadDataFromUrl(currentDataUrl);
 
-      // 2. Filter events
+      // 2. Eventos de los filtros
       document.getElementById('filter-impuesto').addEventListener('change', applyFilters);
       document.getElementById('filter-cuotas').addEventListener('change', applyFilters);
       document.getElementById('filter-fecha-desde').addEventListener('change', applyFilters);
       document.getElementById('filter-fecha-hasta').addEventListener('change', applyFilters);
-      document.getElementById('table-search').addEventListener('input', applyFilters);
-      document.getElementById('table-page-size').addEventListener('change', (e) => {
-        pageSize = parseInt(e.target.value, 10) || 25;
-        currentPage = 1;
-        renderTable();
-      });
 
       document.getElementById('btn-reset-filters').addEventListener('click', () => {
         document.getElementById('filter-impuesto').value = 'ALL';
         document.getElementById('filter-cuotas').value = 'ALL';
         document.getElementById('filter-fecha-desde').value = '';
         document.getElementById('filter-fecha-hasta').value = '';
-        document.getElementById('table-search').value = '';
         applyFilters();
       });
 
-      // 3. Refresh Button
-      document.getElementById('btn-refresh').addEventListener('click', () => {
-        loadDataFromUrl(currentDataUrl);
-      });
-
-      // 4. File input (Upload Excel / CSV)
-      document.getElementById('file-input').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        showLoading(true, 'Leyendo archivo local: ' + file.name);
-        const fileName = file.name.toLowerCase();
-
-        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-          const reader = new FileReader();
-          reader.onload = function(evt) {
-            parseExcelBuffer(evt.target.result, file.name);
-          };
-          reader.readAsArrayBuffer(file);
-        } else {
-          const reader = new FileReader();
-          reader.onload = function(evt) {
-            parseCsvText(evt.target.result, file.name);
-          };
-          reader.readAsText(file, 'utf-8');
-        }
-      });
-
-      // 5. Drag & Drop on whole page
-      window.addEventListener('dragover', (e) => e.preventDefault());
-      window.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          const file = e.dataTransfer.files[0];
-          showLoading(true, 'Procesando archivo soltado: ' + file.name);
-          const fileName = file.name.toLowerCase();
-          if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-            const reader = new FileReader();
-            reader.onload = (evt) => parseExcelBuffer(evt.target.result, file.name);
-            reader.readAsArrayBuffer(file);
-          } else {
-            const reader = new FileReader();
-            reader.onload = (evt) => parseCsvText(evt.target.result, file.name);
-            reader.readAsText(file, 'utf-8');
-          }
-        }
-      });
-
-      // 6. Pagination buttons
-      document.getElementById('btn-prev-page').addEventListener('click', () => {
-        if (currentPage > 1) {
-          currentPage--;
-          renderTable();
-        }
-      });
-      document.getElementById('btn-next-page').addEventListener('click', () => {
-        currentPage++;
-        renderTable();
-      });
-
-      // 7. Toggle Charts Metric
+      // 3. Conmutadores de métricas en los gráficos
       document.getElementById('toggle-chart-cuotas-planes').addEventListener('click', function() {
         cuotasChartMetric = 'planes';
         this.className = 'px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700';
@@ -2108,28 +1146,6 @@ RV,25510.96,1,15946.04,VIGENTE,2026-10-16,0,25510.96,15946.04`;
         this.className = 'px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700';
         document.getElementById('toggle-timeline-monto').className = 'px-2 py-0.5 rounded hover:bg-slate-200';
         renderTimelineChart();
-      });
-
-      // 8. Export to Excel
-      document.getElementById('btn-export-excel').addEventListener('click', exportToExcel);
-
-      // 9. Guide Modal
-      const modalGuide = document.getElementById('modal-guide');
-      document.getElementById('btn-open-guide').addEventListener('click', () => modalGuide.classList.remove('hidden'));
-      document.getElementById('btn-close-guide').addEventListener('click', () => modalGuide.classList.add('hidden'));
-      document.getElementById('btn-close-guide-2').addEventListener('click', () => modalGuide.classList.add('hidden'));
-
-      // 10. Configure URL Modal
-      const modalUrl = document.getElementById('modal-url');
-      document.getElementById('btn-configure-url').addEventListener('click', () => modalUrl.classList.remove('hidden'));
-      document.getElementById('btn-close-url').addEventListener('click', () => modalUrl.classList.add('hidden'));
-      document.getElementById('btn-save-url').addEventListener('click', () => {
-        const customUrl = document.getElementById('input-custom-url').value.trim();
-        if (customUrl) {
-          currentDataUrl = customUrl;
-          modalUrl.classList.add('hidden');
-          loadDataFromUrl(currentDataUrl);
-        }
       });
     });
   </script>
