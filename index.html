@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monitor Bancario BCRA · Variables de Recaudación</title>
-
+  <title>Seguimiento diario de moratoria</title>
+  
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -32,6 +32,12 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+  <!-- SheetJS (xlsx) for native Excel reading -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- PapaParse for CSV fallback reading -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -40,17 +46,17 @@
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
-    .badge-emerald {
+    .badge-contado {
       background-color: #dcfce7;
       color: #15803d;
       border: 1px solid #bbf7d0;
     }
-    .badge-sky {
+    .badge-medio {
       background-color: #e0f2fe;
       color: #0369a1;
       border: 1px solid #bae6fd;
     }
-    .badge-purple {
+    .badge-largo {
       background-color: #f3e8ff;
       color: #7e22ce;
       border: 1px solid #e9d5ff;
@@ -59,30 +65,30 @@
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
 
-  <!-- TOP HEADER (Estética Ejecutiva AGIP / Moratoria) -->
-  <header class="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white shadow-lg border-b border-sky-800/40">
+  <!-- TOP HEADER (Clean & Executive) -->
+  <header class="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white shadow-lg sticky top-0 z-40 border-b border-sky-800/40">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         
         <!-- Logo / Title / Subtitle -->
         <div class="flex items-center space-x-3.5">
           <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/25 text-white text-xl font-bold flex-shrink-0">
-            <i class="fa-solid fa-building-columns"></i>
+            <i class="fa-solid fa-chart-line"></i>
           </div>
           <div>
             <div class="flex items-center gap-2.5 flex-wrap">
               <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white">
-                Monitor de Entidades Financieras · BCRA
+                Seguimiento diario de moratoria
               </h1>
               <span id="badge-source" class="text-[11px] px-2.5 py-0.5 rounded-full font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span id="source-name">API BCRA v4.0</span>
+                <span id="source-name">data.xlsx</span>
               </span>
             </div>
             <!-- Subtitle with dynamic dates -->
             <p id="main-subtitle" class="text-xs sm:text-sm font-medium text-sky-200/90 mt-0.5 flex items-center gap-1.5">
               <i class="fa-regular fa-calendar-check text-sky-400"></i>
-              <span id="subtitle-text">Variables determinantes de recaudación bancaria · Cargando datos...</span>
+              <span id="subtitle-text">Monitoreo desde 16/10 hasta ...</span>
             </p>
           </div>
         </div>
@@ -90,8 +96,8 @@
         <!-- Right Side: Unit indicator -->
         <div class="flex items-center gap-2 sm:text-right">
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-900/60 border border-sky-700/50 text-sky-200 text-xs font-semibold shadow-inner">
-            <i class="fa-solid fa-scale-balanced text-sky-400"></i>
-            <span id="unit-badge-text">Stock en Millones de $ · Tasas en % TNA</span>
+            <i class="fa-solid fa-calculator text-sky-400"></i>
+            Valores expresados en Millones de $
           </span>
         </div>
 
@@ -103,11 +109,11 @@
   <div id="status-bar" class="bg-sky-50 border-b border-sky-200 text-sky-900 text-xs px-4 py-2 transition-all">
     <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px]">
       <div class="flex items-center gap-2">
-        <i class="fa-solid fa-database text-emerald-600"></i>
-        <span id="status-message">Sincronizando series históricas desde data/bcra_data.json...</span>
+        <i class="fa-solid fa-file-excel text-emerald-600"></i>
+        <span id="status-message">Leyendo archivo Excel desde GitHub...</span>
       </div>
       <div class="text-slate-500 flex items-center gap-3">
-        <span id="records-summary-label">Actualización automática vía GitHub Actions</span>
+        <span id="records-summary-label">Actualización automática</span>
         <span id="status-update-label" class="font-mono text-slate-400"></span>
       </div>
     </div>
@@ -116,181 +122,51 @@
   <!-- MAIN CONTENT CONTAINER -->
   <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full space-y-6">
 
-    <!-- 5 KEY FINANCIAL KPI CARDS (RESUMEN GENERAL FIJO ARRIBA) -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-      
-      <!-- KPI 1: Stock de Deuda / Préstamos -->
-      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
-        <div class="absolute -right-3 -bottom-3 text-sky-100 text-7xl opacity-40 pointer-events-none">
-          <i class="fa-solid fa-vault"></i>
-        </div>
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span id="kpi-stock-label" class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Stock Préstamos (Privado)</span>
-            <span class="p-1.5 rounded-xl bg-sky-50 text-sky-600 text-xs"><i class="fa-solid fa-sack-dollar"></i></span>
-          </div>
-          <div id="kpi-stock-total" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">$ 0 M</div>
-          <div id="kpi-stock-var" class="text-[11px] font-semibold text-emerald-600 mt-0.5">—</div>
-        </div>
-        <div class="mt-2.5 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
-          <span>Otra moneda:</span>
-          <span id="kpi-stock-alt-currency" class="font-semibold text-slate-700">USD 0 M</span>
-        </div>
-      </div>
-
-      <!-- KPI 2: Tasas de Líneas de Crédito (Activas) -->
-      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
-        <div class="absolute -right-3 -bottom-3 text-indigo-100 text-7xl opacity-40 pointer-events-none">
-          <i class="fa-solid fa-percent"></i>
-        </div>
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tasas Líneas de Crédito</span>
-            <span class="p-1.5 rounded-xl bg-indigo-50 text-indigo-600 text-xs"><i class="fa-solid fa-credit-card"></i></span>
-          </div>
-          <div class="flex items-baseline gap-2">
-            <span id="kpi-tasa-personales" class="text-xl sm:text-2xl font-extrabold text-indigo-950 tracking-tight">0,00%</span>
-            <span class="text-[11px] font-medium text-slate-500">Personales</span>
-          </div>
-          <div id="kpi-tasa-tarjetas-sub" class="text-[11px] font-semibold text-indigo-600 mt-0.5">Tarjetas: 0,00% TNA</div>
-        </div>
-        <div class="mt-2.5 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
-          <span>Adelantos / Doc.:</span>
-          <span id="kpi-tasa-comerciales" class="font-semibold text-slate-800">0,00% / 0,00%</span>
-        </div>
-      </div>
-
-      <!-- KPI 3: Tasas de Plazos Fijos (Pasivas) -->
-      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
-        <div class="absolute -right-3 -bottom-3 text-emerald-100 text-7xl opacity-40 pointer-events-none">
-          <i class="fa-solid fa-piggy-bank"></i>
-        </div>
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Tasas de Plazos Fijos</span>
-            <span class="p-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-xs"><i class="fa-solid fa-building-lock"></i></span>
-          </div>
-          <div class="flex items-baseline gap-2">
-            <span id="kpi-tasa-pf-total" class="text-xl sm:text-2xl font-extrabold text-emerald-700 tracking-tight">0,00%</span>
-            <span class="text-[11px] font-medium text-slate-500">PF Pesos</span>
-          </div>
-          <div id="kpi-tasa-pf-humanas" class="text-[11px] font-semibold text-slate-600 mt-0.5">Individuos: 0,00% · BADLAR: 0,00%</div>
-        </div>
-        <div class="mt-2.5 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
-          <span>TM20 / TAMAR:</span>
-          <span id="kpi-tasa-mayoristas" class="font-semibold text-emerald-700 font-mono">0,00% / 0,00%</span>
-        </div>
-      </div>
-
-      <!-- KPI 4: Tipo de Cambio (Mayorista, Contable y Minorista) -->
-      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
-        <div class="absolute -right-3 -bottom-3 text-amber-100 text-7xl opacity-40 pointer-events-none">
-          <i class="fa-solid fa-dollar-sign"></i>
-        </div>
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Tipo de Cambio BCRA</span>
-            <span class="p-1.5 rounded-xl bg-amber-50 text-amber-600 text-xs"><i class="fa-solid fa-money-bill-transfer"></i></span>
-          </div>
-          <div class="flex items-baseline gap-1.5">
-            <span id="kpi-tc-mayorista" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">$ 0,00</span>
-            <span class="text-[11px] font-medium text-slate-500">Mayorista</span>
-          </div>
-          <div id="kpi-tc-contable" class="text-[11px] font-semibold text-amber-700 mt-0.5">TC Contable: $ 0,00</div>
-        </div>
-        <div class="mt-2.5 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
-          <span>Minorista / Var. 30d:</span>
-          <span id="kpi-tc-minorista" class="font-semibold text-slate-800">$ 0,00 (0,0%)</span>
-        </div>
-      </div>
-
-      <!-- KPI 5: Inflación IPC + CER / UVA -->
-      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
-        <div class="absolute -right-3 -bottom-3 text-purple-100 text-7xl opacity-40 pointer-events-none">
-          <i class="fa-solid fa-chart-line"></i>
-        </div>
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Inflación IPC · CER / UVA</span>
-            <span class="p-1.5 rounded-xl bg-purple-50 text-purple-600 text-xs"><i class="fa-solid fa-arrow-trend-up"></i></span>
-          </div>
-          <div class="flex items-baseline gap-2">
-            <span id="kpi-ipc-mensual" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">0,0%</span>
-            <span id="kpi-ipc-interanual" class="text-xs font-bold text-purple-700">0,0% i.a.</span>
-          </div>
-          <div id="kpi-rem-12m" class="text-[11px] font-medium text-slate-500 mt-0.5">REM 12M: 0,0%</div>
-        </div>
-        <div class="mt-2.5 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
-          <span>CER / UVA:</span>
-          <span id="kpi-cer-uva" class="font-semibold text-purple-800 font-mono">0,00 / $ 0,00</span>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- STICKY FILTERS TOOLBAR (SIEMPRE VISIBLE AL HACER SCROLL, AGRUPADO EN STOCKS / TASAS / ÍNDICES) -->
-    <section class="sticky top-2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-sky-200/80 p-3.5 transition-all">
-      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3.5">
+    <!-- FILTERS TOOLBAR -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         
-        <!-- Primary Category Switcher: STOCKS | TASAS | ÍNDICES + Resumen activo -->
-        <div class="flex flex-wrap items-center gap-2.5">
-          <div class="flex items-center gap-1.5 font-semibold text-xs text-slate-700 mr-1">
-            <i class="fa-solid fa-sliders text-sky-600"></i>
-            <span>Dimensión:</span>
-          </div>
-          <div class="inline-flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button type="button" data-main-group="STOCKS" class="main-group-btn px-3 py-1.5 rounded-lg text-xs font-bold transition bg-sky-600 text-white shadow-sm flex items-center gap-1.5">
-              <i class="fa-solid fa-layer-group text-[11px]"></i>
-              <span>Stocks</span>
-            </button>
-            <button type="button" data-main-group="TASAS" class="main-group-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-percent text-[11px]"></i>
-              <span>Tasas</span>
-            </button>
-            <button type="button" data-main-group="INDICES" class="main-group-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-chart-line text-[11px]"></i>
-              <span>Índices y TC</span>
-            </button>
-          </div>
-          <span id="active-filter-badge" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
-            Stocks · Sector Privado · ARS
+        <!-- Filter heading -->
+        <div class="flex items-center gap-2 font-semibold text-sm text-slate-700">
+          <i class="fa-solid fa-filter text-sky-600"></i>
+          <span>Filtros de Análisis</span>
+          <span id="filtered-count-badge" class="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            Cargando...
           </span>
         </div>
 
-        <!-- Adaptive Filter Controls -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 flex-grow max-w-4xl">
+        <!-- Filter Controls -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 flex-grow max-w-4xl">
           
-          <!-- Dynamic Filter 1 (Sector en Stocks / Subgrupo en Tasas / Familia en Índices) -->
+          <!-- Filter Impuesto -->
           <div>
-            <label id="label-filter-1" for="filter-1" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Sector de Deuda</label>
-            <select id="filter-1" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition font-semibold text-slate-800">
+            <label for="filter-impuesto" class="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Impuesto</label>
+            <select id="filter-impuesto" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition">
+              <option value="ALL">Todos los Impuestos</option>
             </select>
           </div>
 
-          <!-- Dynamic Filter 2 (Moneda en Stocks / Tipo en Tasas / Medición en Índices) -->
+          <!-- Filter Cuotas (1 pago, 2-11 cuotas, 12 cuotas) -->
           <div>
-            <label id="label-filter-2" for="filter-2" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Moneda de Cartera</label>
-            <select id="filter-2" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition font-medium text-slate-800">
+            <label for="filter-cuotas" class="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Plan de Cuotas</label>
+            <select id="filter-cuotas" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition font-medium">
+              <option value="ALL">Todas las cuotas</option>
+              <option value="1">1 Pago (Contado)</option>
+              <option value="2-11">Entre 2 y 11 Cuotas</option>
+              <option value="12">12 Cuotas (Plazo Máximo)</option>
             </select>
           </div>
 
-          <!-- Dynamic Filter 3 (Variable / Línea específica para ver en Serie Histórica) -->
+          <!-- Filter Fecha Desde -->
           <div>
-            <label id="label-filter-3" for="filter-3" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Variable / Serie Foco</label>
-            <select id="filter-3" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition font-medium text-slate-800">
-            </select>
+            <label for="filter-fecha-desde" class="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Desde Fecha</label>
+            <input type="date" id="filter-fecha-desde" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition">
           </div>
 
-          <!-- Filter 4: Horizonte Temporal -->
+          <!-- Filter Fecha Hasta -->
           <div>
-            <label for="filter-rango" class="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Horizonte Temporal</label>
-            <select id="filter-rango" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition font-medium text-slate-800">
-              <option value="30">Últimos 30 días</option>
-              <option value="90">Últimos 90 días</option>
-              <option value="180" selected>Últimos 6 meses</option>
-              <option value="365">Último año (12M)</option>
-              <option value="9999">Serie histórica completa</option>
-            </select>
+            <label for="filter-fecha-hasta" class="block text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Hasta Fecha</label>
+            <input type="date" id="filter-fecha-hasta" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none transition">
           </div>
 
         </div>
@@ -299,212 +175,317 @@
         <div class="flex items-end">
           <button id="btn-reset-filters" class="w-full sm:w-auto px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition font-medium flex items-center justify-center gap-1.5">
             <i class="fa-solid fa-arrows-rotate text-slate-400"></i>
-            <span>Restablecer</span>
+            <span>Limpiar</span>
           </button>
         </div>
 
       </div>
     </section>
 
-    <!-- CHARTS GRID (JUSTO DEBAJO DE LA BARRA STICKY PARA VER EL IMPACTO INMEDIATO DE LOS CAMBIOS) -->
-    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- KEY FINANCIAL KPI CARDS (ORDEN Y TITULOS SEGUN REQUERIMIENTO) -->
+    <!-- 1) Total adherido a moratoria | 2) Importe nominal | 3) Intereses resarcitorios adheridos | 4) Intereses condonados -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       
-      <!-- Chart Izquierdo: Evolución Histórica de la Variable / Serie Foco Seleccionada -->
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
-        <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
-          <div>
-            <h3 class="text-sm font-bold text-slate-800">
-              Evolución Histórica: <span id="chart-left-title" class="text-sky-700">Total de Préstamos</span>
-            </h3>
-            <p id="chart-left-subtitle" class="text-xs text-slate-500">Serie oficial BCRA según dimensión y horizonte seleccionados</p>
-          </div>
-          <span id="chart-left-badge" class="text-xs px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-semibold">Serie BCRA</span>
+      <!-- KPI 1: Total adherido a moratoria (TotConsolidado) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute -right-3 -bottom-3 text-sky-100 text-7xl opacity-40 pointer-events-none">
+          <i class="fa-solid fa-file-invoice-dollar"></i>
         </div>
-        <div class="relative h-72 flex items-center justify-center">
-          <canvas id="chart-left-canvas"></canvas>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total adherido a moratoria</span>
+            <span class="p-2 rounded-xl bg-sky-50 text-sky-600 text-sm"><i class="fa-solid fa-hand-holding-dollar"></i></span>
+          </div>
+          <div id="kpi-total-consolidada" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">$ 0,00 M</div>
+        </div>
+        <div class="mt-3 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
+          <span>Cantidad de planes:</span>
+          <span id="kpi-planes-count" class="font-semibold text-slate-800">0 planes</span>
         </div>
       </div>
 
-      <!-- Chart Derecho: Comparativa Dinámica según Dimensión (Ranking/Torta en Stocks | Comparativa de Tasas | Comparativa de Índices) -->
-      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
-        <div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
-          <div>
-            <h3 id="chart-right-title" class="text-sm font-bold text-slate-800">Desglose de Stock por Línea de Crédito</h3>
-            <p id="chart-right-subtitle" class="text-xs text-slate-500">Comparativa de las variables que integran la dimensión seleccionada</p>
-          </div>
-          <div id="chart-right-toggles" class="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600">
-            <button id="toggle-right-bar" class="px-2.5 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700">Ranking</button>
-            <button id="toggle-right-doughnut" class="px-2.5 py-0.5 rounded hover:bg-slate-200">Participación</button>
-          </div>
+      <!-- KPI 2: Importe nominal (capital) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute -right-3 -bottom-3 text-indigo-100 text-7xl opacity-40 pointer-events-none">
+          <i class="fa-solid fa-vault"></i>
         </div>
-        <div class="relative h-72 flex items-center justify-center">
-          <canvas id="chart-right-canvas"></canvas>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Importe nominal</span>
+            <span class="p-2 rounded-xl bg-indigo-50 text-indigo-600 text-sm"><i class="fa-solid fa-coins"></i></span>
+          </div>
+          <div id="kpi-total-nominal" class="text-2xl sm:text-3xl font-extrabold text-indigo-950 tracking-tight">$ 0,00 M</div>
+        </div>
+        <div class="mt-3 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
+          <span>% s/ Deuda adm. posible:</span>
+          <span id="kpi-nominal-pct" class="font-semibold text-indigo-600">0%</span>
+        </div>
+      </div>
+
+      <!-- KPI 3: Intereses resarcitorios adheridos (interes plan) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute -right-3 -bottom-3 text-amber-100 text-7xl opacity-40 pointer-events-none">
+          <i class="fa-solid fa-percent"></i>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Intereses resarcitorios adheridos</span>
+            <span class="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm"><i class="fa-solid fa-chart-line"></i></span>
+          </div>
+          <div id="kpi-total-interes-plan" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">$ 0,00 M</div>
+        </div>
+        <div class="mt-3 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
+          <span>Resarcitorios totales:</span>
+          <span id="kpi-total-resarcitorios" class="font-semibold text-slate-700">$ 0,00 M</span>
+        </div>
+      </div>
+
+      <!-- KPI 4: Intereses condonados (interes condonado) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute -right-3 -bottom-3 text-emerald-100 text-7xl opacity-40 pointer-events-none">
+          <i class="fa-solid fa-gift"></i>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Intereses condonados</span>
+            <span class="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm"><i class="fa-solid fa-handshake-angle"></i></span>
+          </div>
+          <div id="kpi-total-condonado" class="text-2xl sm:text-3xl font-extrabold text-emerald-700 tracking-tight">$ 0,00 M</div>
+        </div>
+        <div class="mt-3 text-[11px] text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
+          <span>Tasa de condonación:</span>
+          <span id="kpi-tasa-condonacion" class="font-semibold text-emerald-600 font-mono">0% condonado</span>
         </div>
       </div>
 
     </section>
 
-    <!-- 3 TARJETAS DE DETALLE ADAPTATIVAS SEGÚN DIMENSIÓN (STOCKS / TASAS / ÍNDICES) -->
-    <section class="space-y-3">
-      <div class="flex items-center justify-between flex-wrap gap-2">
-        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-cubes-stacked text-sky-600"></i>
-          <span id="cards-section-title">Segmentación de Stock por Tipo de Línea de Crédito</span>
-        </h2>
-        <span id="cards-section-subtitle" class="text-xs text-slate-500 font-medium">Líneas Comerciales (Corto Plazo) | Consumo y Tarjetas | Hipotecarios, Prendarios y Otros</span>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        <!-- Tarjeta Detalle 1 (Emerald) -->
-        <div class="bg-gradient-to-br from-emerald-50/60 to-white rounded-2xl p-4 border border-emerald-200/80 shadow-sm hover:shadow-md transition">
-          <div class="flex items-center justify-between mb-3">
-            <span id="card1-badge" class="px-2.5 py-1 text-xs font-bold rounded-lg badge-emerald flex items-center gap-1.5">
-              <i class="fa-solid fa-briefcase"></i> Comercial (Adelantos y Doc.)
-            </span>
-            <span id="card1-top-right" class="text-xs font-semibold text-emerald-700">0,0% del stock</span>
-          </div>
-          <div class="space-y-2 text-sm">
-            <div>
-              <p id="card1-main-label" class="text-[11px] text-slate-500 font-medium">Stock Consolidado Comercial</p>
-              <p id="card1-main-val" class="text-xl font-bold text-slate-900">$ 0 M</p>
-            </div>
-            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-emerald-100 text-xs">
-              <div>
-                <span id="card1-sub1-label" class="text-slate-500 block text-[11px]">Adelantos:</span>
-                <span id="card1-sub1-val" class="font-semibold text-slate-800">$ 0 M</span>
-              </div>
-              <div>
-                <span id="card1-sub2-label" class="text-slate-500 block text-[11px]">Documentos:</span>
-                <span id="card1-sub2-val" class="font-semibold text-emerald-700">$ 0 M</span>
-              </div>
-            </div>
-            <div class="pt-1 text-[11px] text-slate-600 flex justify-between items-center border-t border-emerald-50">
-              <span id="card1-foot-label" class="font-medium text-slate-500">Tasas TNA (Adel. / Doc.):</span>
-              <span id="card1-foot-val" class="font-bold text-slate-800">0,00% / 0,00%</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tarjeta Detalle 2 (Sky) -->
-        <div class="bg-gradient-to-br from-sky-50/60 to-white rounded-2xl p-4 border border-sky-200/80 shadow-sm hover:shadow-md transition">
-          <div class="flex items-center justify-between mb-3">
-            <span id="card2-badge" class="px-2.5 py-1 text-xs font-bold rounded-lg badge-sky flex items-center gap-1.5">
-              <i class="fa-solid fa-credit-card"></i> Consumo (Personales y Tarjetas)
-            </span>
-            <span id="card2-top-right" class="text-xs font-semibold text-sky-700">0,0% del stock</span>
-          </div>
-          <div class="space-y-2 text-sm">
-            <div>
-              <p id="card2-main-label" class="text-[11px] text-slate-500 font-medium">Stock Consolidado Consumo</p>
-              <p id="card2-main-val" class="text-xl font-bold text-slate-900">$ 0 M</p>
-            </div>
-            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-sky-100 text-xs">
-              <div>
-                <span id="card2-sub1-label" class="text-slate-500 block text-[11px]">Préstamos Personales:</span>
-                <span id="card2-sub1-val" class="font-semibold text-slate-800">$ 0 M</span>
-              </div>
-              <div>
-                <span id="card2-sub2-label" class="text-slate-500 block text-[11px]">Tarjetas de Crédito:</span>
-                <span id="card2-sub2-val" class="font-semibold text-sky-700">$ 0 M</span>
-              </div>
-            </div>
-            <div class="pt-1 text-[11px] text-slate-600 flex justify-between items-center border-t border-sky-50">
-              <span id="card2-foot-label" class="font-medium text-slate-500">Tasas TNA (Pers. / Tarj.):</span>
-              <span id="card2-foot-val" class="font-bold text-slate-800">0,00% / 0,00%</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tarjeta Detalle 3 (Purple) -->
-        <div class="bg-gradient-to-br from-purple-50/60 to-white rounded-2xl p-4 border border-purple-200/80 shadow-sm hover:shadow-md transition">
-          <div class="flex items-center justify-between mb-3">
-            <span id="card3-badge" class="px-2.5 py-1 text-xs font-bold rounded-lg badge-purple flex items-center gap-1.5">
-              <i class="fa-solid fa-house-chimney"></i> Hipotecarios, Prendarios y Otros
-            </span>
-            <span id="card3-top-right" class="text-xs font-semibold text-purple-700">0,0% del stock</span>
-          </div>
-          <div class="space-y-2 text-sm">
-            <div>
-              <p id="card3-main-label" class="text-[11px] text-slate-500 font-medium">Stock Garantizados y Otros</p>
-              <p id="card3-main-val" class="text-xl font-bold text-slate-900">$ 0 M</p>
-            </div>
-            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-purple-100 text-xs">
-              <div>
-                <span id="card3-sub1-label" class="text-slate-500 block text-[11px]">Hipotecarios + Prendarios:</span>
-                <span id="card3-sub1-val" class="font-semibold text-slate-800">$ 0 M</span>
-              </div>
-              <div>
-                <span id="card3-sub2-label" class="text-slate-500 block text-[11px]">Otros + Intereses Doc.:</span>
-                <span id="card3-sub2-val" class="font-semibold text-purple-700">$ 0 M</span>
-              </div>
-            </div>
-            <div class="pt-1 text-[11px] text-slate-600 flex justify-between items-center border-t border-purple-50">
-              <span id="card3-foot-label" class="font-medium text-slate-500">Tasas TNA (Hip. / Prend. / UVA):</span>
-              <span id="card3-foot-val" class="font-bold text-slate-800">0% / 0% / 0%</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- BANNER EJECUTIVO OSCURO: SOLO VISIBLE EN LA DIMENSIÓN "STOCKS" -->
-    <section id="stocks-participation-banner" class="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-5 shadow-sm border border-slate-700/60">
+    <!-- AVANCE SOBRE DEUDA ADMINISTRATIVA POTENCIAL (UNIVERSO TOTAL POSIBLE) -->
+    <section class="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-5 shadow-sm border border-slate-700/60">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4 pb-3 border-b border-slate-700/60">
         <div>
           <div class="flex items-center gap-2">
-            <span class="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 text-xs"><i class="fa-solid fa-chart-pie"></i></span>
-            <h2 class="text-sm sm:text-base font-bold text-white">Participación de Stock por Sector y Fondeo Bancario</h2>
+            <span class="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 text-xs"><i class="fa-solid fa-bullseye"></i></span>
+            <h2 class="text-sm sm:text-base font-bold text-white">Avance sobre Universo Potencial (Deuda Administrativa)</h2>
           </div>
           <p class="text-xs text-slate-300 mt-0.5">
-            Apertura entre <span class="font-semibold text-sky-300">Sector Privado</span> y <span class="font-semibold text-amber-300">Sector Público</span>, y relación frente a Plazos Fijos y Títulos en Cartera (<span id="banner-currency-label" class="underline decoration-sky-400">en Pesos ARS</span>)
+            Porcentajes calculados sobre el total posible que puede ingresar a la moratoria (<span id="universo-nombre-label" class="font-semibold text-sky-300">Totales Generales</span>)
           </p>
         </div>
         <div class="text-xs text-slate-300 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
-          <i class="fa-solid fa-landmark text-sky-400"></i>
-          <span>Títulos en Cartera: <strong id="banner-titulos-val" class="text-white">$ 0 M</strong> · Plazos Fijos: <strong id="banner-pf-stock" class="text-white">$ 0 M</strong></span>
+          <i class="fa-solid fa-database text-sky-400"></i>
+          <span>Meta Universo: <strong id="universo-nominal-meta" class="text-white">$ 684.444 M</strong> (<strong id="universo-deudas-meta" class="text-white">1.780.415 deudas</strong>)</span>
         </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         
-        <!-- Barra 1: Participación Sector Privado vs. Público -->
+        <!-- Progreso 1: Deuda Nominal Adherida vs Universo -->
         <div class="bg-white/5 rounded-xl p-4 border border-white/10 space-y-2">
           <div class="flex justify-between items-baseline">
-            <span class="text-xs font-medium text-slate-300">Participación Sector Privado vs. Sector Público</span>
-            <span id="banner-pct-privado" class="text-base font-extrabold text-sky-400 font-mono">0,0% Privado</span>
+            <span class="text-xs font-medium text-slate-300">Importe Nominal Adherido</span>
+            <span id="univ-pct-nominal" class="text-base font-extrabold text-sky-400 font-mono">0,00%</span>
           </div>
-          <div class="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden flex">
-            <div id="banner-bar-privado" class="bg-gradient-to-r from-sky-500 to-indigo-400 h-2.5 transition-all duration-700" style="width: 95%"></div>
-            <div id="banner-bar-publico" class="bg-amber-400 h-2.5 transition-all duration-700" style="width: 5%"></div>
+          <!-- Progress bar -->
+          <div class="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden">
+            <div id="univ-bar-nominal" class="bg-gradient-to-r from-sky-500 to-emerald-400 h-2.5 rounded-full transition-all duration-700" style="width: 0%"></div>
           </div>
           <div class="flex justify-between text-[11px] text-slate-400">
-            <span>Privado: <strong id="banner-val-privado" class="text-slate-200">$ 0 M</strong></span>
-            <span>Público: <strong id="banner-val-publico" class="text-amber-300">$ 0 M</strong></span>
-            <span>Total: <strong id="banner-val-total" class="text-white">$ 0 M</strong></span>
+            <span>Ingresado: <strong id="univ-val-nominal" class="text-slate-200">$ 0,00 M</strong></span>
+            <span>Universo: <strong id="univ-total-nominal" class="text-slate-200">$ 684.444 M</strong></span>
           </div>
         </div>
 
-        <!-- Barra 2: Mix Comercial / Consumo / Garantizados -->
+        <!-- Progreso 2: Cantidad de Planes vs Cantidad de Deudas Posibles -->
         <div class="bg-white/5 rounded-xl p-4 border border-white/10 space-y-2">
           <div class="flex justify-between items-baseline">
-            <span class="text-xs font-medium text-slate-300">Mix de Líneas (<span id="banner-mix-sector-name">Sector Privado</span>)</span>
-            <span id="banner-mix-summary" class="text-xs font-bold text-emerald-400 font-mono">Comercial 0% · Consumo 0% · Resto 0%</span>
+            <span class="text-xs font-medium text-slate-300">Cantidad de Planes / Deudas Acogidas</span>
+            <span id="univ-pct-cantidad" class="text-base font-extrabold text-emerald-400 font-mono">0,00%</span>
           </div>
-          <div class="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden flex">
-            <div id="banner-bar-comercial" class="bg-emerald-500 h-2.5 transition-all duration-700" style="width: 35%"></div>
-            <div id="banner-bar-consumo" class="bg-sky-500 h-2.5 transition-all duration-700" style="width: 45%"></div>
-            <div id="banner-bar-garantizado" class="bg-purple-500 h-2.5 transition-all duration-700" style="width: 20%"></div>
+          <!-- Progress bar -->
+          <div class="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden">
+            <div id="univ-bar-cantidad" class="bg-gradient-to-r from-emerald-500 to-teal-300 h-2.5 rounded-full transition-all duration-700" style="width: 0%"></div>
           </div>
           <div class="flex justify-between text-[11px] text-slate-400">
-            <span><span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1"></span>Comercial: <strong id="banner-mix-com-val" class="text-slate-200">$ 0 M</strong></span>
-            <span><span class="inline-block w-2 h-2 rounded-full bg-sky-400 mr-1"></span>Consumo: <strong id="banner-mix-con-val" class="text-slate-200">$ 0 M</strong></span>
-            <span><span class="inline-block w-2 h-2 rounded-full bg-purple-400 mr-1"></span>Garant./Otros: <strong id="banner-mix-gar-val" class="text-slate-200">$ 0 M</strong></span>
+            <span>Planes: <strong id="univ-val-cantidad" class="text-slate-200">0</strong></span>
+            <span>Total deudas: <strong id="univ-total-cantidad" class="text-slate-200">1.780.415</strong></span>
           </div>
         </div>
 
       </div>
+    </section>
+
+    <!-- CUOTAS BREAKDOWN (1 PAGO, 2-11 CUOTAS, 12 CUOTAS) -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-layer-group text-sky-600"></i>
+          <span>Segmentación por Cantidad de Cuotas</span>
+        </h2>
+        <span class="text-xs text-slate-500 font-medium">1 Pago (Contado) | 2 a 11 Cuotas | 12 Cuotas (Máximo)</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Tarjeta: 1 Pago (Contado) -->
+        <div class="bg-gradient-to-br from-emerald-50/60 to-white rounded-2xl p-4 border border-emerald-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-1 text-xs font-bold rounded-lg badge-contado flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt"></i> 1 Pago (Contado)
+            </span>
+            <span id="badge-pct-planes-1" class="text-xs font-semibold text-emerald-700">0% planes</span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div>
+              <p class="text-[11px] text-slate-500 font-medium">Monto Consolidado</p>
+              <p id="cuota-1-monto" class="text-xl font-bold text-slate-900">$ 0,00 M</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-emerald-100 text-xs">
+              <div>
+                <span class="text-slate-500 block text-[11px]">Planes:</span>
+                <span id="cuota-1-count" class="font-semibold text-slate-800">0</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block text-[11px]">Interés Condonado:</span>
+                <span id="cuota-1-condonado" class="font-semibold text-emerald-700">$ 0,00 M</span>
+              </div>
+            </div>
+            <!-- RENOMBRADO A BOLETA PROMEDIO -->
+            <div class="pt-1 text-[11px] text-slate-600 flex justify-between items-center border-t border-emerald-50">
+              <span class="font-medium text-slate-500">Boleta promedio:</span>
+              <span id="cuota-1-ticket" class="font-bold text-slate-800">$ 0,00 M</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta: 2 a 11 Cuotas (Plan Intermedio) -->
+        <div class="bg-gradient-to-br from-sky-50/60 to-white rounded-2xl p-4 border border-sky-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-1 text-xs font-bold rounded-lg badge-medio flex items-center gap-1.5">
+              <i class="fa-solid fa-calendar-days"></i> 2 a 11 Cuotas
+            </span>
+            <span id="badge-pct-planes-medio" class="text-xs font-semibold text-sky-700">0% planes</span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div>
+              <p class="text-[11px] text-slate-500 font-medium">Monto Consolidado</p>
+              <p id="cuota-medio-monto" class="text-xl font-bold text-slate-900">$ 0,00 M</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-sky-100 text-xs">
+              <div>
+                <span class="text-slate-500 block text-[11px]">Planes:</span>
+                <span id="cuota-medio-count" class="font-semibold text-slate-800">0</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block text-[11px]">Interés en Plan:</span>
+                <span id="cuota-medio-interes" class="font-semibold text-sky-700">$ 0,00 M</span>
+              </div>
+            </div>
+            <div class="pt-1 text-[11px] text-slate-600 flex justify-between items-center border-t border-sky-50">
+              <span class="font-medium text-slate-500">Cuota promedio:</span>
+              <span id="cuota-medio-promedio-cuota" class="font-bold text-slate-800">$ 0,00 M</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta: 12 Cuotas (Plazo Máximo) -->
+        <div class="bg-gradient-to-br from-purple-50/60 to-white rounded-2xl p-4 border border-purple-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-1 text-xs font-bold rounded-lg badge-largo flex items-center gap-1.5">
+              <i class="fa-solid fa-clock-rotate-left"></i> 12 Cuotas (Máximo)
+            </span>
+            <span id="badge-pct-planes-12" class="text-xs font-semibold text-purple-700">0% planes</span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div>
+              <p class="text-[11px] text-slate-500 font-medium">Monto Consolidado</p>
+              <p id="cuota-12-monto" class="text-xl font-bold text-slate-900">$ 0,00 M</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-purple-100 text-xs">
+              <div>
+                <span class="text-slate-500 block text-[11px]">Planes:</span>
+                <span id="cuota-12-count" class="font-semibold text-slate-800">0</span>
+              </div>
+              <div>
+                <span class="text-slate-500 block text-[11px]">Interés en Plan:</span>
+                <span id="cuota-12-interes" class="font-semibold text-purple-700">$ 0,00 M</span>
+              </div>
+            </div>
+            <!-- RENOMBRADO A CUOTA PROMEDIO -->
+            <div class="pt-1 text-[11px] text-slate-600 flex justify-between items-center border-t border-purple-50">
+              <span class="font-medium text-slate-500">Cuota promedio:</span>
+              <span id="cuota-12-promedio-cuota" class="font-bold text-slate-800">$ 0,00 M</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CHARTS GRID -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Chart 1: Distribución por Modalidad de Cuotas (Doughnut) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Distribución de Planes por Modalidad de Cuotas</h3>
+            <p class="text-xs text-slate-500">Participación de 1 pago, 2-11 cuotas y 12 cuotas</p>
+          </div>
+          <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600">
+            <button id="toggle-chart-cuotas-planes" class="px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700">Planes</button>
+            <button id="toggle-chart-cuotas-montos" class="px-2 py-0.5 rounded hover:bg-slate-200">Monto ($ M)</button>
+          </div>
+        </div>
+        <div class="relative h-64 flex items-center justify-center">
+          <canvas id="chart-cuotas-dist"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Desglose por Impuesto -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Distribución por Tipo de Impuesto</h3>
+            <p class="text-xs text-slate-500">Total adherido vs. Interés condonado en Millones ($)</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-semibold">Tributos</span>
+        </div>
+        <div class="relative h-64 flex items-center justify-center">
+          <canvas id="chart-impuesto-dist"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 3: Frecuencia por Cantidad Exacta de Cuotas (1 a 12) -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Frecuencia por Cantidad Exacta de Cuotas</h3>
+            <p class="text-xs text-slate-500">Cantidad de planes acordados en cada cuota específica (1 a 12)</p>
+          </div>
+        </div>
+        <div class="relative h-64 flex items-center justify-center">
+          <canvas id="chart-cuotas-histogram"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 4: Evolución Diaria de Consolidación -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Evolución Diaria de Consolidación</h3>
+            <p class="text-xs text-slate-500">Avance cronológico por fecha de consolidación</p>
+          </div>
+          <div class="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium text-slate-600">
+            <button id="toggle-timeline-monto" class="px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700">Monto ($ M)</button>
+            <button id="toggle-timeline-planes" class="px-2 py-0.5 rounded hover:bg-slate-200">Planes</button>
+          </div>
+        </div>
+        <div class="relative h-64 flex items-center justify-center">
+          <canvas id="chart-timeline"></canvas>
+        </div>
+      </div>
+
     </section>
 
   </main>
@@ -512,983 +493,827 @@
   <!-- FOOTER -->
   <footer class="bg-white border-t border-slate-200 py-4 mt-8 text-center text-xs text-slate-500">
     <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-      <div>Monitor de Variables Bancarias · Fuente Oficial: <strong>API Estadísticas Monetarias v4.0 (BCRA)</strong></div>
-      <div>Actualización diaria automatizada en GitHub (<strong>data/bcra_data.json</strong>)</div>
+      <div>Seguimiento diario de moratoria</div>
+      <div>Actualizado automáticamente desde el archivo Excel <strong>data.xlsx</strong> en GitHub</div>
     </div>
   </footer>
 
   <!-- APPLICATION JAVASCRIPT LOGIC -->
   <script>
-    // 1. DEFINICIÓN DE LAS 3 DIMENSIONES: STOCKS | TASAS | INDICES
-
-    // A) Dimensión STOCKS (Categoría BCRA: "Préstamos por línea" / diar_fin.xls)
-    const CREDIT_LINES = [
-      {
-        key: 'tarjetas',
-        nombre: 'Tarjetas de Crédito',
-        grupo: 'Consumo',
-        ids: { TOTAL: { ARS: 1285, USD: 1306 }, PRIVADO: { ARS: 1351, USD: 1365 }, PUBLICO: { ARS: 1323, USD: 1337 } }
+    // Referencia fija de Deuda Administrativa potencial proporcionada por el usuario
+    const DEUDA_ADMINISTRATIVA = {
+      ALL: {
+        cantidadDeudas: 1780415,
+        deudaNominalTotal: 684443716556,
+        nombre: 'Totales Generales'
       },
-      {
-        key: 'personales',
-        nombre: 'Préstamos Personales',
-        grupo: 'Consumo',
-        ids: { TOTAL: { ARS: 1284, USD: 1305 }, PRIVADO: { ARS: 1350, USD: 1364 }, PUBLICO: { ARS: 1322, USD: 1336 } }
+      ABL: {
+        cantidadDeudas: 800772,
+        deudaNominalTotal: 250504054244,
+        nombre: 'Inm/ABL'
       },
-      {
-        key: 'doc_sola_firma',
-        nombre: 'Documentos a Sola Firma',
-        grupo: 'Comercial',
-        ids: { TOTAL: { ARS: 1279, USD: 1300 }, PRIVADO: { ARS: 1345, USD: 1359 }, PUBLICO: { ARS: 1317, USD: 1331 } }
-      },
-      {
-        key: 'adelantos_cc',
-        nombre: 'Adelantos en Cta. Corriente',
-        grupo: 'Comercial',
-        ids: { TOTAL: { ARS: 1277, USD: 1298 }, PRIVADO: { ARS: 1343, USD: 1357 }, PUBLICO: { ARS: 1315, USD: 1329 } }
-      },
-      {
-        key: 'hipotecarios',
-        nombre: 'Préstamos Hipotecarios',
-        grupo: 'Garantizado',
-        ids: { TOTAL: { ARS: 1282, USD: 1303 }, PRIVADO: { ARS: 1348, USD: 1362 }, PUBLICO: { ARS: 1320, USD: 1334 } }
-      },
-      {
-        key: 'doc_descontados',
-        nombre: 'Descuento de Documentos',
-        grupo: 'Comercial',
-        ids: { TOTAL: { ARS: 1280, USD: 1301 }, PRIVADO: { ARS: 1346, USD: 1360 }, PUBLICO: { ARS: 1318, USD: 1332 } }
-      },
-      {
-        key: 'otros_prestamos',
-        nombre: 'Otros Préstamos',
-        grupo: 'Garantizado',
-        ids: { TOTAL: { ARS: 1287, USD: 1308 }, PRIVADO: { ARS: 1353, USD: 1367 }, PUBLICO: { ARS: 1325, USD: 1339 } }
-      },
-      {
-        key: 'prendarios',
-        nombre: 'Préstamos Prendarios',
-        grupo: 'Garantizado',
-        ids: { TOTAL: { ARS: 1283, USD: 1304 }, PRIVADO: { ARS: 1349, USD: 1363 }, PUBLICO: { ARS: 1321, USD: 1335 } }
-      },
-      {
-        key: 'doc_comprados',
-        nombre: 'Documentos Comprados',
-        grupo: 'Comercial',
-        ids: { TOTAL: { ARS: 1281, USD: 1302 }, PRIVADO: { ARS: 1347, USD: 1361 }, PUBLICO: { ARS: 1319, USD: 1333 } }
-      },
-      {
-        key: 'intereses_doc',
-        nombre: 'Intereses Documentados',
-        grupo: 'Garantizado',
-        ids: { TOTAL: { ARS: 1291, USD: 1312 }, PRIVADO: { ARS: 1354, USD: 1368 }, PUBLICO: { ARS: 1326, USD: 1340 } }
-      },
-      {
-        key: 'otros_adelantos',
-        nombre: 'Otros Adelantos',
-        grupo: 'Comercial',
-        ids: { TOTAL: { ARS: 1278, USD: 1299 }, PRIVADO: { ARS: 1344, USD: 1358 }, PUBLICO: { ARS: 1316, USD: 1330 } }
-      },
-      {
-        key: 'cred_documentarios',
-        nombre: 'Créditos Documentarios',
-        grupo: 'Garantizado',
-        ids: { TOTAL: { ARS: 1286, USD: 1307 }, PRIVADO: { ARS: 1352, USD: 1366 }, PUBLICO: { ARS: 1324, USD: 1338 } }
+      RV: {
+        cantidadDeudas: 979643,
+        deudaNominalTotal: 433939662312,
+        nombre: 'Patentes'
       }
-    ];
-
-    const TOTAL_LOAN_IDS = {
-      TOTAL:   { ARS: 1275, USD: 1296 },
-      PRIVADO: { ARS: 1341, USD: 1355 },
-      PUBLICO: { ARS: 1313, USD: 1327 }
     };
 
-    // B) Dimensión TASAS (Activas por línea y Pasivas de Plazos Fijos)
-    const TASAS_ITEMS = [
-      // Activas (Líneas de Crédito)
-      { id: 1215, label: 'Tasa Tarjetas de Crédito', subgrupo: 'ACTIVAS', segmento: 'PESOS', color: '#4f46e5' },
-      { id: 14,   label: 'Tasa Préstamos Personales (Diaria)', subgrupo: 'ACTIVAS', segmento: 'PESOS', color: '#0284c7' },
-      { id: 1219, label: 'Tasa Préstamos Personales (Tasa Fija)', subgrupo: 'ACTIVAS', segmento: 'PESOS', color: '#0369a1' },
-      { id: 1199, label: 'Tasa Adelantos Cta. Cte. (Tasa Fija)', subgrupo: 'ACTIVAS', segmento: 'PESOS', color: '#0ea5e9' },
-      { id: 13,   label: 'Tasa Adelantos Cta. Cte. Empresas (+10M)', subgrupo: 'ACTIVAS', segmento: 'PESOS', color: '#2563eb' },
-      { id: 1217, label: 'Tasa Préstamos Hipotecarios (Tasa Fija)', subgrupo: 'ACTIVAS', segmento: 'PESOS', color: '#7c3aed' },
-      { id: 1216, label: 'Tasa Documentos a Sola Firma', subgrupo: 'ACTIVAS', segmento: 'PESOS', color: '#6366f1' },
-      { id: 1218, label: 'Tasa Préstamos Prendarios', subgrupo: 'ACTIVAS', segmento: 'PESOS', color: '#8b5cf6' },
-      { id: 1240, label: 'Tasa Préstamos Hipotecarios UVA', subgrupo: 'ACTIVAS', segmento: 'UVA_USD', color: '#9333ea' },
-      // Pasivas (Plazos Fijos por Inversor y Plazo)
-      { id: 1189, label: 'Plazo Fijo en Pesos (Total Sistema)', subgrupo: 'PLAZO_FIJO', segmento: 'PESOS', color: '#10b981' },
-      { id: 1190, label: 'Plazo Fijo Pesos · Personas Humanas', subgrupo: 'PLAZO_FIJO', segmento: 'PESOS', color: '#059669' },
-      { id: 1192, label: 'Plazo Fijo Pesos · Personas Jurídicas', subgrupo: 'PLAZO_FIJO', segmento: 'PESOS', color: '#047857' },
-      { id: 1191, label: 'Plazo Fijo Pesos · Prestadores Serv. Financieros', subgrupo: 'PLAZO_FIJO', segmento: 'PESOS', color: '#14b8a6' },
-      { id: 12,   label: 'Depósitos a 30 días de plazo', subgrupo: 'PLAZO_FIJO', segmento: 'PESOS', color: '#22c55e' },
-      { id: 1205, label: 'Plazo Fijo de 7 a 59 días', subgrupo: 'PLAZO_FIJO', segmento: 'PESOS', color: '#34d399' },
-      { id: 1208, label: 'Plazo Fijo de 60 días o más', subgrupo: 'PLAZO_FIJO', segmento: 'PESOS', color: '#16a34a' },
-      { id: 1203, label: 'Cajas de Ahorro en Pesos', subgrupo: 'PLAZO_FIJO', segmento: 'PESOS', color: '#6ee7b7' },
-      { id: 1227, label: 'Plazo Fijo UVA', subgrupo: 'PLAZO_FIJO', segmento: 'UVA_USD', color: '#0d9488' },
-      { id: 1193, label: 'Plazo Fijo en Dólares (Total)', subgrupo: 'PLAZO_FIJO', segmento: 'UVA_USD', color: '#0f766e' },
-      // Mayoristas de Referencia
-      { id: 7,    label: 'BADLAR Bancos Privados (% TNA)', subgrupo: 'MAYORISTAS', segmento: 'PESOS', color: '#f59e0b' },
-      { id: 35,   label: 'BADLAR Bancos Privados (% TEA)', subgrupo: 'MAYORISTAS', segmento: 'PESOS', color: '#d97706' },
-      { id: 8,    label: 'TM20 Bancos Privados (% TNA)', subgrupo: 'MAYORISTAS', segmento: 'PESOS', color: '#ea580c' },
-      { id: 44,   label: 'TAMAR Bancos Privados (% TNA)', subgrupo: 'MAYORISTAS', segmento: 'PESOS', color: '#b45309' }
-    ];
+    // State management
+    let rawDataset = [];
+    let filteredDataset = [];
+    let currentDataUrl = './data.xlsx';
+    let chartCuotasDistInstance = null;
+    let chartImpuestoDistInstance = null;
+    let chartCuotasHistoInstance = null;
+    let chartTimelineInstance = null;
+    
+    // View modes
+    let cuotasChartMetric = 'planes'; // 'planes' | 'montos'
+    let timelineChartMetric = 'monto'; // 'monto' | 'planes'
 
-    // C) Dimensión ÍNDICES Y TIPO DE CAMBIO (TC, IPC, REM, CER, UVA)
-    const INDICES_ITEMS = [
-      // Tipo de Cambio
-      { id: 5,    label: 'Tipo de Cambio Mayorista (Com. A 3500)', familia: 'TC', unit: '$/USD', prefix: '$ ', suffix: '', color: '#f59e0b' },
-      { id: 84,   label: 'Tipo de Cambio Valuación Contable BCRA', familia: 'TC', unit: '$/USD', prefix: '$ ', suffix: '', color: '#0284c7' },
-      { id: 4,    label: 'Tipo de Cambio Minorista Promedio', familia: 'TC', unit: '$/USD', prefix: '$ ', suffix: '', color: '#10b981' },
-      { id: 1188, label: 'Banda Cambiaria · Límite Superior', familia: 'TC', unit: '$/USD', prefix: '$ ', suffix: '', color: '#ef4444' },
-      { id: 1187, label: 'Banda Cambiaria · Límite Inferior', familia: 'TC', unit: '$/USD', prefix: '$ ', suffix: '', color: '#64748b' },
-      // Inflación IPC y REM
-      { id: 27,   label: 'Inflación Mensual (IPC Nacional)', familia: 'IPC', unit: '%', prefix: '', suffix: '%', color: '#8b5cf6' },
-      { id: 28,   label: 'Inflación Interanual (IPC Nacional)', familia: 'IPC', unit: '%', prefix: '', suffix: '%', color: '#6366f1' },
-      { id: 29,   label: 'REM · Inflación Esperada Próximos 12M', familia: 'IPC', unit: '%', prefix: '', suffix: '%', color: '#ec4899' },
-      // Indexadores CER y UVA
-      { id: 31,   label: 'UVA (Unidad de Valor Adquisitivo)', familia: 'CER_UVA', unit: '$ ARS', prefix: '$ ', suffix: '', color: '#7c3aed' },
-      { id: 30,   label: 'CER (Coeficiente de Estabilización)', familia: 'CER_UVA', unit: 'Índice', prefix: '', suffix: '', color: '#0284c7' }
-    ];
-
-    // Estado de la aplicación
-    let bcraData = null;
-    let varCatalog = {};
-    let varHistory = {};
-
-    let mainGroup = 'STOCKS'; // 'STOCKS' | 'TASAS' | 'INDICES'
-    let rightChartStockMode = 'bar'; // 'bar' | 'doughnut'
-
-    let chartLeftInstance = null;
-    let chartRightInstance = null;
-
-    // Helpers de formato numérico argentino
-    function formatNumber(val, decimals = 2) {
-      if (val === undefined || val === null || isNaN(val)) return '—';
-      return Number(val).toLocaleString('es-AR', {
+    // Formatter para números en millones ($ X,XX M)
+    function formatMillions(val, decimals = 2) {
+      if (val === undefined || val === null || isNaN(val)) return '$ 0,00 M';
+      const inMillions = val / 1000000;
+      return '$ ' + inMillions.toLocaleString('es-AR', {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
-      });
+      }) + ' M';
     }
 
-    function formatStock(val, moneda = 'ARS') {
-      if (val === undefined || val === null || isNaN(val)) return '—';
-      const prefix = (moneda === 'USD') ? 'USD ' : '$ ';
-      const decimals = Math.abs(val) >= 100 ? 0 : 1;
-      return `${prefix}${formatNumber(val, decimals)} M`;
+    // Formatter para números de cantidad entera (e.g. 1.780.415)
+    function formatCount(val) {
+      return Number(val || 0).toLocaleString('es-AR');
     }
 
-    function formatDateShort(dateStr) {
-      if (!dateStr) return '—';
-      const parts = String(dateStr).slice(0, 10).split('-');
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-      return dateStr;
-    }
-
-    function formatDayMonth(dateStr) {
-      if (!dateStr) return '';
-      const parts = String(dateStr).slice(0, 10).split('-');
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0].slice(2)}`;
-      return dateStr;
-    }
-
-    function getLatest(id) {
-      const catItem = varCatalog[id];
-      const hist = varHistory[String(id)] || [];
-      if (hist.length > 0) {
-        const last = hist[hist.length - 1];
-        return { valor: Number(last.valor), fecha: last.fecha };
+    // Helper: parse numbers safely (handles strings, currencies, commas and dots)
+    function parseNumeric(val) {
+      if (val === undefined || val === null) return 0;
+      if (typeof val === 'number') return isNaN(val) ? 0 : val;
+      let s = String(val).trim().replace(/\$/g, '').replace(/\s/g, '');
+      if (s === '') return 0;
+      if (s.includes(',') && !s.includes('.')) {
+        s = s.replace(',', '.');
+      } else if (s.includes('.') && s.includes(',')) {
+        s = s.replace(/\./g, '').replace(',', '.');
       }
-      if (catItem && catItem.ultValorInformado !== undefined) {
-        return { valor: Number(catItem.ultValorInformado), fecha: catItem.ultFechaInformada };
-      }
-      return { valor: 0, fecha: '' };
+      let n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
     }
 
-    function getVarDays(id, daysBack = 30, isPointDiff = false) {
-      const hist = varHistory[String(id)] || [];
-      if (hist.length < 2) return null;
-      const last = hist[hist.length - 1];
-      const lastDate = new Date(last.fecha);
-      const targetDate = new Date(lastDate.getTime() - daysBack * 86400 * 1000);
-
-      let refPoint = hist[0];
-      for (let i = hist.length - 2; i >= 0; i--) {
-        const d = new Date(hist[i].fecha);
-        refPoint = hist[i];
-        if (d <= targetDate) break;
+    // Helper para formatear fechas a DD/MM
+    function formatToDayMonth(dateVal) {
+      if (!dateVal) return '';
+      let s = String(dateVal).trim();
+      
+      // Si viene como YYYY-MM-DD
+      if (s.includes('-')) {
+        const parts = s.split('-');
+        if (parts.length === 3) {
+          // parts: [YYYY, MM, DD]
+          return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
+        }
+      }
+      
+      // Si viene como DD/MM/YYYY
+      if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length >= 2) {
+          return `${parts[0].padStart(2, '0')}/${parts[1].padStart(2, '0')}`;
+        }
       }
 
-      if (!refPoint || refPoint.valor === 0) return null;
-      if (isPointDiff) return Number(last.valor) - Number(refPoint.valor);
-      return ((Number(last.valor) - Number(refPoint.valor)) / Math.abs(Number(refPoint.valor))) * 100;
+      return s;
     }
 
-    function getStockValue(idsBySector, sector, moneda) {
-      const pair = idsBySector[sector];
-      if (!pair) return 0;
-      if (moneda === 'ARS') return getLatest(pair.ARS).valor;
-      if (moneda === 'USD') return getLatest(pair.USD).valor;
-      const arsLat = getLatest(pair.ARS);
-      const usdLat = getLatest(pair.USD);
-      // En diar_fin.xls (Nota 2), el consolidado en pesos convierte USD usando el TC Mayorista Com. "A" 3500 (ID 5) de la misma fecha
-      const tcHist = varHistory['5'] || [];
-      const tcOnDate = tcHist.find(x => x.fecha === arsLat.fecha)?.valor || getLatest(5).valor || 1;
-      return arsLat.valor + (usdLat.valor * Number(tcOnDate));
-    }
+    // Helper: normalizar filas con las columnas especificadas
+    function cleanAndNormalizeData(dataRows) {
+      const cleaned = [];
 
-    function getStockSeries(pair, moneda, days) {
-      if (!pair) return [];
-      const serieArs = varHistory[String(pair.ARS)] || [];
-      const serieUsd = varHistory[String(pair.USD)] || [];
+      for (let i = 0; i < dataRows.length; i++) {
+        const row = dataRows[i];
+        if (!row) continue;
 
-      let raw = [];
-      if (moneda === 'ARS') {
-        raw = serieArs;
-      } else if (moneda === 'USD') {
-        raw = serieUsd;
-      } else {
-        const usdMap = {};
-        serieUsd.forEach(p => { usdMap[p.fecha] = Number(p.valor); });
-        const tcSerie = varHistory['5'] || [];
-        const tcMap = {};
-        let lastTc = getLatest(5).valor || 1;
-        tcSerie.forEach(p => { tcMap[p.fecha] = Number(p.valor); });
+        // Clean keys
+        const item = {};
+        for (let key in row) {
+          const cleanKey = key.trim();
+          item[cleanKey] = typeof row[key] === 'string' ? row[key].trim() : row[key];
+        }
 
-        raw = serieArs.map(p => {
-          const tc = tcMap[p.fecha] || lastTc;
-          lastTc = tc;
-          const u = usdMap[p.fecha] ?? 0;
-          return { fecha: p.fecha, valor: Number(p.valor) + u * tc };
+        const impuesto = (item['impuesto'] || item['Impuesto'] || item['IMPUESTO'] || '').toString().trim().toUpperCase();
+        
+        // Total consolidado: columna TotConsolidado
+        const totalConsolidada = parseNumeric(
+          item['TotConsolidado'] ?? item['totconsolidado'] ?? item['TotConsolidada'] ?? item['totconsolidada'] ?? item['TotalConsolidado'] ?? item['Total Consolidado'] ?? 0
+        );
+        
+        // Skip empty spacer rows or trailing blank lines
+        if (!impuesto && totalConsolidada === 0) continue;
+
+        // Capital nominal: columna capital
+        const capitalNominal = parseNumeric(
+          item['capital'] ?? item['Capital'] ?? item['CAPITAL'] ?? item['Nominal'] ?? item['nominal'] ?? 0
+        );
+
+        const cuotas = parseInt(item['ctas'] ?? item['Ctas'] ?? item['cuotas'] ?? item['Cuotas'] ?? 1, 10) || 1;
+        const resarcitorios = parseNumeric(item['Resarcitorios'] ?? item['resarcitorios'] ?? item['resarcitorio'] ?? item['Resarcitorio'] ?? 0);
+        const interesPlan = parseNumeric(item['interes plan'] ?? item['interes_plan'] ?? item['Interes plan'] ?? item['InteresPlan'] ?? 0);
+        const interesCondonado = parseNumeric(item['interes condonado'] ?? item['interes_condonado'] ?? item['Interes condonado'] ?? item['InteresCondonado'] ?? 0);
+        const estado = (item['Estado'] ?? item['estado'] ?? 'VIGENTE').toString().trim().toUpperCase();
+        
+        // Formateo de fecha
+        let fecha = '';
+        const rawDate = item['FechaConsolidacion'] ?? item['fechaconsolidacion'] ?? item['Fecha'] ?? item['fecha'];
+        if (rawDate instanceof Date) {
+          fecha = rawDate.toISOString().slice(0, 10);
+        } else if (typeof rawDate === 'number') {
+          // Serial number de Excel
+          const dateObj = new Date((rawDate - 25569) * 86400 * 1000);
+          fecha = dateObj.toISOString().slice(0, 10);
+        } else if (rawDate) {
+          fecha = String(rawDate).trim();
+        }
+
+        // Categorize installments
+        let grupoCuotas = '1 Pago';
+        if (cuotas === 1) {
+          grupoCuotas = '1 Pago';
+        } else if (cuotas >= 2 && cuotas <= 11) {
+          grupoCuotas = '2-11 Cuotas';
+        } else {
+          grupoCuotas = '12 Cuotas';
+        }
+
+        cleaned.push({
+          id: i + 1,
+          impuesto: impuesto || 'OTRO',
+          TotConsolidada: totalConsolidada,
+          ctas: cuotas,
+          grupoCuotas: grupoCuotas,
+          Resarcitorios: resarcitorios,
+          interes_plan: interesPlan,
+          Nominal: capitalNominal,
+          interes_condonado: interesCondonado,
+          Estado: estado,
+          FechaConsolidacion: fecha
         });
       }
 
-      return filterSeriesByDays(raw, days);
+      return cleaned;
     }
 
-    function filterSeriesByDays(series, days) {
-      if (!series || series.length === 0) return [];
-      if (days >= 9000) return series;
-      const lastDateStr = series[series.length - 1].fecha;
-      const cutoff = new Date(new Date(lastDateStr).getTime() - days * 86400 * 1000);
-      const filtered = series.filter(item => new Date(item.fecha) >= cutoff);
-      return filtered.length > 1 ? filtered : series.slice(-Math.min(series.length, 12));
-    }
+    // Load Data via HTTP Fetch (with cache busting)
+    async function loadDataFromUrl(url) {
+      updateStatus(`Cargando archivo: ${url}...`);
 
-    // Configurar los selectores dinámicos (filter-1, filter-2, filter-3) según la dimensión activa
-    function configureControlsForMainGroup(preserveF1 = false, preserveF2 = false) {
-      const f1 = document.getElementById('filter-1');
-      const f2 = document.getElementById('filter-2');
-      const f3 = document.getElementById('filter-3');
-      const l1 = document.getElementById('label-filter-1');
-      const l2 = document.getElementById('label-filter-2');
-      const l3 = document.getElementById('label-filter-3');
-
-      const prevF1 = f1.value;
-      const prevF2 = f2.value;
-
-      if (mainGroup === 'STOCKS') {
-        l1.textContent = 'Sector de Deuda';
-        f1.innerHTML = `
-          <option value="PRIVADO">Sector Privado</option>
-          <option value="TOTAL">Total Sectores (Priv. + Púb.)</option>
-          <option value="PUBLICO">Sector Público</option>
-        `;
-        if (preserveF1 && ['PRIVADO', 'TOTAL', 'PUBLICO'].includes(prevF1)) f1.value = prevF1;
-
-        l2.textContent = 'Moneda de Cartera';
-        f2.innerHTML = `
-          <option value="ARS">Moneda Nacional (Millones $ ARS)</option>
-          <option value="USD">Moneda Extranjera (Millones USD)</option>
-          <option value="CONSOLIDADO">Nac. + Ext. Consolidado ($ a TC A3500)</option>
-        `;
-        if (preserveF2 && ['ARS', 'USD', 'CONSOLIDADO'].includes(prevF2)) f2.value = prevF2;
-
-        l3.textContent = 'Línea de Crédito (Serie Foco)';
-        f3.innerHTML = `<option value="total">Total de Préstamos</option>` +
-          CREDIT_LINES.map(l => `<option value="${l.key}">${l.nombre}</option>`).join('') +
-          `<option value="pf_stock">Stock Depósitos a Plazo Fijo (ARS)</option>` +
-          `<option value="titulos_stock">Títulos Valores en Cartera Bancos</option>`;
-
-      } else if (mainGroup === 'TASAS') {
-        l1.textContent = 'Grupo de Tasas';
-        f1.innerHTML = `
-          <option value="ACTIVAS">Tasas Activas (Líneas de Crédito)</option>
-          <option value="PLAZO_FIJO">Tasas Pasivas (Plazos Fijos)</option>
-          <option value="MAYORISTAS">Tasas Mayoristas (BADLAR / TM20 / TAMAR)</option>
-          <option value="ALL">Todas las Tasas</option>
-        `;
-        if (preserveF1 && ['ACTIVAS', 'PLAZO_FIJO', 'MAYORISTAS', 'ALL'].includes(prevF1)) f1.value = prevF1;
-
-        l2.textContent = 'Moneda / Segmento';
-        f2.innerHTML = `
-          <option value="ALL">Todas las monedas</option>
-          <option value="PESOS">Solo Tasas en Pesos ($)</option>
-          <option value="UVA_USD">Tasas UVA y Dólares</option>
-        `;
-        if (preserveF2 && ['ALL', 'PESOS', 'UVA_USD'].includes(prevF2)) f2.value = prevF2;
-
-        populateTasasFilter3();
-
-      } else if (mainGroup === 'INDICES') {
-        l1.textContent = 'Familia de Índice';
-        f1.innerHTML = `
-          <option value="TC">Tipo de Cambio y Bandas ($/USD)</option>
-          <option value="IPC">Inflación IPC y REM (%)</option>
-          <option value="CER_UVA">Indexadores Bancarios (CER y UVA)</option>
-        `;
-        if (preserveF1 && ['TC', 'IPC', 'CER_UVA'].includes(prevF1)) f1.value = prevF1;
-
-        l2.textContent = 'Visualización Serie';
-        f2.innerHTML = `
-          <option value="NIVEL">Valor / Nivel Publicado</option>
-          <option value="VAR30">Variación acumulada 30 días (%)</option>
-        `;
-        if (preserveF2 && ['NIVEL', 'VAR30'].includes(prevF2)) f2.value = prevF2;
-
-        populateIndicesFilter3();
-      }
-    }
-
-    function populateTasasFilter3() {
-      const subgrupo = document.getElementById('filter-1').value;
-      const seg = document.getElementById('filter-2').value;
-      const f3 = document.getElementById('filter-3');
-      document.getElementById('label-filter-3').textContent = 'Tasa Específica (Serie Foco)';
-
-      const filtered = TASAS_ITEMS.filter(t => {
-        if (subgrupo !== 'ALL' && t.subgrupo !== subgrupo) return false;
-        if (seg !== 'ALL' && t.segmento !== seg) return false;
-        return true;
-      });
-      const list = filtered.length > 0 ? filtered : TASAS_ITEMS;
-      f3.innerHTML = list.map(t => `<option value="${t.id}">${t.label}</option>`).join('');
-    }
-
-    function populateIndicesFilter3() {
-      const fam = document.getElementById('filter-1').value;
-      const f3 = document.getElementById('filter-3');
-      document.getElementById('label-filter-3').textContent = 'Índice / Cotización (Serie Foco)';
-
-      const filtered = INDICES_ITEMS.filter(i => i.familia === fam);
-      const list = filtered.length > 0 ? filtered : INDICES_ITEMS;
-      f3.innerHTML = list.map(i => `<option value="${i.id}">${i.label}</option>`).join('');
-    }
-
-    // Cargar datos desde data/bcra_data.json
-    async function loadBcraData() {
-      const statusMsg = document.getElementById('status-message');
       try {
-        const res = await fetch(`./data/bcra_data.json?_t=${Date.now()}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        bcraData = await res.json();
+        const fetchUrl = url.includes('?') ? `${url}&_t=${Date.now()}` : `${url}?_t=${Date.now()}`;
+        const response = await fetch(fetchUrl);
 
-        (bcraData.variables || []).forEach(v => {
-          varCatalog[v.idVariable] = v;
-        });
-        varHistory = bcraData.history || {};
-
-        const lastUpdateIso = bcraData.metadata?.last_update || '';
-        const fechaStock = getLatest(1341).fecha || getLatest(4).fecha;
-
-        statusMsg.textContent = `Datos oficiales BCRA sincronizados (${bcraData.variables?.length || 0} series monetarias y de crédito activas).`;
-        document.getElementById('records-summary-label').textContent = `Cierre de cartera: ${formatDateShort(fechaStock)}`;
-        if (lastUpdateIso) {
-          const d = new Date(lastUpdateIso);
-          document.getElementById('status-update-label').textContent = `Actualizado: ${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+        if (!response.ok) {
+          // Si falló data.xlsx, intentar con data.csv
+          if (url.endsWith('.xlsx')) {
+            console.log('data.xlsx no encontrado, intentando con data.csv...');
+            return loadDataFromUrl('./data.csv');
+          }
+          throw new Error(`Error HTTP ${response.status}: No se pudo descargar ${url}`);
         }
-        document.getElementById('subtitle-text').textContent = `Seguimiento diario de Tipo de Cambio, Inflación/CER/UVA, Stock de Deuda por Línea y Tasas (Datos al ${formatDateShort(fechaStock)})`;
 
-        configureControlsForMainGroup();
-        refreshDashboard();
+        if (url.endsWith('.xlsx') || url.endsWith('.xls')) {
+          const arrayBuffer = await response.arrayBuffer();
+          parseExcelBuffer(arrayBuffer, url);
+        } else {
+          const text = await response.text();
+          parseCsvText(text, url);
+        }
       } catch (err) {
-        console.error('Error cargando bcra_data.json:', err);
-        statusMsg.textContent = 'Error al leer data/bcra_data.json.';
-        document.getElementById('status-bar').className = 'bg-rose-50 border-b border-rose-200 text-rose-900 text-xs px-4 py-2';
-      }
-    }
-
-    // Actualizar los 5 KPIs generales fijos de arriba
-    function updateTopKpis() {
-      // Si estamos en STOCKS usamos el sector y moneda elegidos; si no, mostramos Privado ARS por defecto
-      const sector = mainGroup === 'STOCKS' ? document.getElementById('filter-1').value : 'PRIVADO';
-      const moneda = mainGroup === 'STOCKS' ? document.getElementById('filter-2').value : 'ARS';
-
-      const sectorShort = sector === 'PRIVADO' ? 'Privado' : (sector === 'PUBLICO' ? 'Público' : 'Total');
-      document.getElementById('kpi-stock-label').textContent = `Stock Préstamos (${sectorShort})`;
-
-      const totalStock = getStockValue(TOTAL_LOAN_IDS, sector, moneda);
-      document.getElementById('kpi-stock-total').textContent = formatStock(totalStock, moneda);
-
-      const activeIdForVar = moneda === 'USD' ? TOTAL_LOAN_IDS[sector].USD : TOTAL_LOAN_IDS[sector].ARS;
-      const var30Stock = getVarDays(activeIdForVar, 30, false);
-      const varEl = document.getElementById('kpi-stock-var');
-      if (var30Stock !== null) {
-        const sign = var30Stock >= 0 ? '+' : '';
-        varEl.textContent = `${sign}${formatNumber(var30Stock, 1)}% últimos 30 días`;
-        varEl.className = `text-[11px] font-semibold mt-0.5 ${var30Stock >= 0 ? 'text-emerald-600' : 'text-rose-600'}`;
-      } else {
-        varEl.textContent = 'Sin variación 30d';
-      }
-
-      if (moneda === 'USD') {
-        document.getElementById('kpi-stock-alt-currency').textContent = formatStock(getStockValue(TOTAL_LOAN_IDS, sector, 'ARS'), 'ARS');
-      } else {
-        document.getElementById('kpi-stock-alt-currency').textContent = formatStock(getStockValue(TOTAL_LOAN_IDS, sector, 'USD'), 'USD');
-      }
-
-      // KPI 2: Tasas de Líneas de Crédito
-      const tasaPers = getLatest(14).valor || getLatest(1219).valor;
-      const tasaTarj = getLatest(1215).valor;
-      const tasaAdel = getLatest(13).valor || getLatest(1199).valor;
-      const tasaDoc = getLatest(1216).valor;
-      document.getElementById('kpi-tasa-personales').textContent = `${formatNumber(tasaPers, 2)}%`;
-      document.getElementById('kpi-tasa-tarjetas-sub').textContent = `Tarjetas: ${formatNumber(tasaTarj, 2)}% TNA`;
-      document.getElementById('kpi-tasa-comerciales').textContent = `${formatNumber(tasaAdel, 1)}% / ${formatNumber(tasaDoc, 1)}%`;
-
-      // KPI 3: Tasas de Plazos Fijos
-      const tasaPfTotal = getLatest(1189).valor || getLatest(12).valor;
-      const tasaPfHum = getLatest(1190).valor;
-      const tasaBadlar = getLatest(7).valor;
-      const tasaTm20 = getLatest(8).valor;
-      const tasaTamar = getLatest(44).valor;
-      document.getElementById('kpi-tasa-pf-total').textContent = `${formatNumber(tasaPfTotal, 2)}%`;
-      document.getElementById('kpi-tasa-pf-humanas').textContent = `Indiv.: ${formatNumber(tasaPfHum, 1)}% · BADLAR: ${formatNumber(tasaBadlar, 1)}%`;
-      document.getElementById('kpi-tasa-mayoristas').textContent = `${formatNumber(tasaTm20, 1)}% / ${formatNumber(tasaTamar, 1)}%`;
-
-      // KPI 4: Tipo de Cambio
-      const tcMay = getLatest(5).valor;
-      const tcCont = getLatest(84).valor;
-      const tcMin = getLatest(4).valor;
-      const varTc30 = getVarDays(5, 30, false);
-      document.getElementById('kpi-tc-mayorista').textContent = `$ ${formatNumber(tcMay, 2)}`;
-      document.getElementById('kpi-tc-contable').textContent = `TC Contable (Valuación): $ ${formatNumber(tcCont, 2)}`;
-      const signTc = (varTc30 && varTc30 >= 0) ? '+' : '';
-      document.getElementById('kpi-tc-minorista').textContent = `$ ${formatNumber(tcMin, 2)} (${varTc30 !== null ? signTc + formatNumber(varTc30, 1) + '%' : '—'})`;
-
-      // KPI 5: Inflación IPC + CER / UVA
-      const ipcMensual = getLatest(27).valor;
-      const ipcIa = getLatest(28).valor;
-      const rem12 = getLatest(29).valor;
-      const cerVal = getLatest(30).valor;
-      const uvaVal = getLatest(31).valor;
-      document.getElementById('kpi-ipc-mensual').textContent = `${formatNumber(ipcMensual, 1)}%`;
-      document.getElementById('kpi-ipc-interanual').textContent = `${formatNumber(ipcIa, 1)}% i.a.`;
-      document.getElementById('kpi-rem-12m').textContent = `REM 12M esperado: ${formatNumber(rem12, 1)}%`;
-      document.getElementById('kpi-cer-uva').textContent = `${formatNumber(cerVal, 1)} / $ ${formatNumber(uvaVal, 1)}`;
-    }
-
-    // Actualizar todo el tablero según la dimensión y filtros activos
-    function refreshDashboard() {
-      const f1Val = document.getElementById('filter-1').value;
-      const f2Val = document.getElementById('filter-2').value;
-      const f3Val = document.getElementById('filter-3').value;
-      const rangeDays = parseInt(document.getElementById('filter-rango').value, 10) || 180;
-
-      const f1Text = document.getElementById('filter-1').selectedOptions[0]?.textContent || '';
-      const f2Text = document.getElementById('filter-2').selectedOptions[0]?.textContent || '';
-
-      const groupLabel = mainGroup === 'STOCKS' ? 'Stocks' : (mainGroup === 'TASAS' ? 'Tasas' : 'Índices y TC');
-      document.getElementById('active-filter-badge').textContent = `${groupLabel} · ${f1Text.split('(')[0].trim()} · ${f2Text.split('(')[0].trim()}`;
-
-      updateTopKpis();
-
-      // Mostrar u ocultar el banner de participación de stocks (solo tiene sentido en STOCKS)
-      const stocksBanner = document.getElementById('stocks-participation-banner');
-      const rightToggles = document.getElementById('chart-right-toggles');
-
-      if (mainGroup === 'STOCKS') {
-        stocksBanner.style.display = 'block';
-        rightToggles.style.display = 'flex';
-        renderStocksView(f1Val, f2Val, f3Val, rangeDays);
-      } else if (mainGroup === 'TASAS') {
-        stocksBanner.style.display = 'none';
-        rightToggles.style.display = 'none';
-        renderTasasView(f1Val, f2Val, parseInt(f3Val, 10), rangeDays);
-      } else {
-        stocksBanner.style.display = 'none';
-        rightToggles.style.display = 'none';
-        renderIndicesView(f1Val, f2Val, parseInt(f3Val, 10), rangeDays);
-      }
-    }
-
-    // ==================== VISTA 1: STOCKS ====================
-    function renderStocksView(sector, moneda, lineaKey, rangeDays) {
-      // 1. Gráficos de Stocks
-      let pair = TOTAL_LOAN_IDS[sector];
-      let title = 'Total de Préstamos';
-      let singleIdSeries = null;
-
-      if (lineaKey === 'pf_stock') {
-        title = 'Stock Depósitos a Plazo Fijo (ARS)';
-        singleIdSeries = filterSeriesByDays(varHistory['24'] || [], rangeDays);
-      } else if (lineaKey === 'titulos_stock') {
-        title = 'Títulos Valores en Cartera de Bancos';
-        const tid = moneda === 'USD' ? '1294' : '1273';
-        singleIdSeries = filterSeriesByDays(varHistory[tid] || [], rangeDays);
-      } else if (lineaKey !== 'total') {
-        const found = CREDIT_LINES.find(l => l.key === lineaKey);
-        if (found) {
-          pair = found.ids[sector];
-          title = found.nombre;
+        console.warn('Fallo al cargar por URL:', err);
+        if (url.endsWith('.xlsx')) {
+          return loadDataFromUrl('./data.csv');
         }
+        updateStatus(`No se pudo descargar "${url}". Asegurate de que data.xlsx esté en el repositorio de GitHub.`, true);
       }
-
-      const seriesLeft = singleIdSeries || getStockSeries(pair, moneda, rangeDays);
-      document.getElementById('chart-left-title').textContent = title;
-      document.getElementById('chart-left-subtitle').textContent = `Evolución histórica diaria (${sector === 'PRIVADO' ? 'Sector Privado' : (sector === 'PUBLICO' ? 'Sector Público' : 'Total Sectores')})`;
-      document.getElementById('chart-left-badge').textContent = moneda === 'USD' ? 'Millones USD' : 'Millones $';
-
-      drawLineChart('chart-left-canvas', true, seriesLeft.map(p => formatDayMonth(p.fecha)), [{
-        label: title,
-        data: seriesLeft.map(p => p.valor),
-        borderColor: '#0284c7',
-        backgroundColor: 'rgba(2, 132, 199, 0.14)',
-        fill: true
-      }], v => formatStock(v, moneda));
-
-      // Gráfico Derecho: Ranking o Participación por Línea de Crédito
-      document.getElementById('chart-right-title').textContent = 'Stock de Deuda Aperturado por Línea de Crédito';
-      document.getElementById('chart-right-subtitle').textContent = `Distribución de cartera por línea (${sector === 'PRIVADO' ? 'Sector Privado' : (sector === 'PUBLICO' ? 'Sector Público' : 'Total Sectores')})`;
-
-      const sorted = CREDIT_LINES.map(l => ({
-        nombre: l.nombre,
-        grupo: l.grupo,
-        valor: getStockValue(l.ids, sector, moneda)
-      })).filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor);
-
-      const ctxR = document.getElementById('chart-right-canvas').getContext('2d');
-      if (chartRightInstance) chartRightInstance.destroy();
-
-      if (rightChartStockMode === 'doughnut') {
-        const palette = ['#0284c7', '#10b981', '#6366f1', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b', '#84cc16'];
-        chartRightInstance = new Chart(ctxR, {
-          type: 'doughnut',
-          data: {
-            labels: sorted.map(x => x.nombre),
-            datasets: [{ data: sorted.map(x => x.valor), backgroundColor: palette, borderWidth: 2, borderColor: '#fff' }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '58%',
-            plugins: {
-              legend: { position: 'right', labels: { boxWidth: 11, font: { size: 10, family: 'Inter' } } },
-              tooltip: { callbacks: { label: c => ` ${c.label}: ${formatStock(c.raw, moneda)}` } }
-            }
-          }
-        });
-      } else {
-        chartRightInstance = new Chart(ctxR, {
-          type: 'bar',
-          data: {
-            labels: sorted.map(x => x.nombre),
-            datasets: [{
-              data: sorted.map(x => x.valor),
-              backgroundColor: sorted.map(x => x.grupo === 'Comercial' ? '#10b981' : (x.grupo === 'Consumo' ? '#0284c7' : '#8b5cf6')),
-              borderRadius: 6
-            }]
-          },
-          options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: { callbacks: { label: c => ` ${formatStock(c.raw, moneda)}` } }
-            },
-            scales: {
-              x: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: v => formatNumber(v, 0) } },
-              y: { grid: { display: false }, ticks: { font: { size: 11, weight: '500' } } }
-            }
-          }
-        });
-      }
-
-      // 2. Actualizar las 3 Tarjetas de Segmentación (Stocks)
-      document.getElementById('cards-section-title').textContent = 'Segmentación de Stock por Tipo de Línea de Crédito';
-      document.getElementById('cards-section-subtitle').textContent = 'Líneas Comerciales (Corto Plazo) | Consumo y Tarjetas | Hipotecarios, Prendarios y Otros';
-
-      const valOf = (key) => {
-        const item = CREDIT_LINES.find(l => l.key === key);
-        return item ? getStockValue(item.ids, sector, moneda) : 0;
-      };
-      const adelantos = valOf('adelantos_cc') + valOf('otros_adelantos');
-      const documentos = valOf('doc_sola_firma') + valOf('doc_descontados') + valOf('doc_comprados');
-      const totalComercial = adelantos + documentos;
-
-      const personales = valOf('personales');
-      const tarjetas = valOf('tarjetas');
-      const totalConsumo = personales + tarjetas;
-
-      const hipPren = valOf('hipotecarios') + valOf('prendarios');
-      const otrosGar = valOf('cred_documentarios') + valOf('otros_prestamos');
-      const interesesDoc = valOf('intereses_doc');
-      const totalGarantizado = hipPren + otrosGar;
-      const grandTotal = (totalComercial + totalConsumo + totalGarantizado) || 1;
-
-      setDetailCard(1, 'fa-briefcase', 'Comercial (Adelantos y Doc.)', `${formatNumber((totalComercial / grandTotal) * 100, 1)}% del stock`,
-        'Stock Consolidado Comercial', formatStock(totalComercial, moneda),
-        'Adelantos (Cta. Cte. + Otros):', formatStock(adelantos, moneda),
-        'Documentos (Sola firma/Desc.):', formatStock(documentos, moneda),
-        'Tasas TNA (Adel. / Doc.):', `${formatNumber(getLatest(13).valor || getLatest(1199).valor, 1)}% / ${formatNumber(getLatest(1216).valor, 1)}%`);
-
-      setDetailCard(2, 'fa-credit-card', 'Consumo (Personales y Tarjetas)', `${formatNumber((totalConsumo / grandTotal) * 100, 1)}% del stock`,
-        'Stock Consolidado Consumo', formatStock(totalConsumo, moneda),
-        'Préstamos Personales:', formatStock(personales, moneda),
-        'Tarjetas de Crédito:', formatStock(tarjetas, moneda),
-        'Tasas TNA (Pers. / Tarj.):', `${formatNumber(getLatest(14).valor, 1)}% / ${formatNumber(getLatest(1215).valor, 1)}%`);
-
-      setDetailCard(3, 'fa-house-chimney', 'Hipotecarios, Prendarios y Otros', `${formatNumber((totalGarantizado / grandTotal) * 100, 1)}% del stock`,
-        'Stock Garantizados y Otros', formatStock(totalGarantizado, moneda),
-        'Hipotecarios + Prendarios:', formatStock(hipPren, moneda),
-        'Otros Prést. / Int. Doc.:', `${formatStock(otrosGar, moneda)} / ${formatStock(interesesDoc, moneda)}`,
-        'Tasas TNA (Hip. / Prend. / UVA):', `${formatNumber(getLatest(1217).valor, 1)}% / ${formatNumber(getLatest(1218).valor, 1)}% / UVA ${formatNumber(getLatest(1240).valor, 1)}%`);
-
-      // 3. Actualizar Banner de Participación (solo en STOCKS)
-      const privStock = getStockValue(TOTAL_LOAN_IDS, 'PRIVADO', moneda);
-      const pubStock = getStockValue(TOTAL_LOAN_IDS, 'PUBLICO', moneda);
-      const totSistema = (privStock + pubStock) || 1;
-      const pctPriv = (privStock / totSistema) * 100;
-      const pctPub = (pubStock / totSistema) * 100;
-
-      document.getElementById('banner-pct-privado').textContent = `${formatNumber(pctPriv, 1)}% Privado / ${formatNumber(pctPub, 1)}% Público`;
-      document.getElementById('banner-bar-privado').style.width = `${Math.max(pctPriv, 2)}%`;
-      document.getElementById('banner-bar-publico').style.width = `${Math.max(pctPub, 1)}%`;
-      document.getElementById('banner-val-privado').textContent = formatStock(privStock, moneda);
-      document.getElementById('banner-val-publico').textContent = formatStock(pubStock, moneda);
-      document.getElementById('banner-val-total').textContent = formatStock(getStockValue(TOTAL_LOAN_IDS, 'TOTAL', moneda), moneda);
-
-      const titulosVal = moneda === 'USD' ? getLatest(1294).valor : getLatest(1273).valor;
-      document.getElementById('banner-titulos-val').textContent = formatStock(titulosVal, moneda === 'USD' ? 'USD' : 'ARS');
-      document.getElementById('banner-pf-stock').textContent = formatStock(getLatest(24).valor, 'ARS');
-
-      const pCom = (totalComercial / grandTotal) * 100;
-      const pCon = (totalConsumo / grandTotal) * 100;
-      const pGar = (totalGarantizado / grandTotal) * 100;
-      document.getElementById('banner-mix-sector-name').textContent = sector === 'PRIVADO' ? 'Sector Privado' : (sector === 'PUBLICO' ? 'Sector Público' : 'Total Sectores');
-      document.getElementById('banner-mix-summary').textContent = `Comercial ${formatNumber(pCom, 1)}% · Consumo ${formatNumber(pCon, 1)}% · Resto ${formatNumber(pGar, 1)}%`;
-      document.getElementById('banner-bar-comercial').style.width = `${pCom}%`;
-      document.getElementById('banner-bar-consumo').style.width = `${pCon}%`;
-      document.getElementById('banner-bar-garantizado').style.width = `${pGar}%`;
-      document.getElementById('banner-mix-com-val').textContent = formatStock(totalComercial, moneda);
-      document.getElementById('banner-mix-con-val').textContent = formatStock(totalConsumo, moneda);
-      document.getElementById('banner-mix-gar-val').textContent = formatStock(totalGarantizado, moneda);
     }
 
-    // ==================== VISTA 2: TASAS ====================
-    function renderTasasView(subgrupo, seg, selectedId, rangeDays) {
-      const itemFoco = TASAS_ITEMS.find(t => t.id === selectedId) || TASAS_ITEMS[0];
-      const seriesLeft = filterSeriesByDays(varHistory[String(itemFoco.id)] || [], rangeDays);
+    // Excel parser (SheetJS)
+    function parseExcelBuffer(buffer, sourceName) {
+      try {
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        if (json && json.length > 0) {
+          processLoadedData(json, sourceName);
+        } else {
+          updateStatus('La hoja de cálculo está vacía.', true);
+        }
+      } catch (e) {
+        console.error('Error al procesar Excel:', e);
+        loadDataFromUrl('./data.csv');
+      }
+    }
 
-      document.getElementById('chart-left-title').textContent = itemFoco.label;
-      document.getElementById('chart-left-subtitle').textContent = 'Evolución histórica de la tasa seleccionada (% TNA / % TEA)';
-      document.getElementById('chart-left-badge').textContent = '% Anual';
+    // CSV parser (PapaParse)
+    function parseCsvText(csvText, sourceName) {
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: false,
+        complete: function(results) {
+          if (results.data && results.data.length > 0) {
+            processLoadedData(results.data, sourceName);
+          } else {
+            updateStatus('El archivo CSV está vacío.', true);
+          }
+        },
+        error: function(err) {
+          updateStatus('Error al procesar el archivo CSV: ' + err.message, true);
+        }
+      });
+    }
 
-      drawLineChart('chart-left-canvas', true, seriesLeft.map(p => formatDayMonth(p.fecha)), [{
-        label: itemFoco.label,
-        data: seriesLeft.map(p => Number(p.valor)),
-        borderColor: itemFoco.color || '#4f46e5',
-        backgroundColor: 'rgba(79, 70, 229, 0.12)',
-        fill: true
-      }], v => `${formatNumber(v, 2)}%`);
+    // Actualizar el subtítulo dinámico con la fecha máxima
+    function updateDynamicSubtitle() {
+      const dates = rawDataset.map(d => d.FechaConsolidacion).filter(Boolean).sort();
+      let maxFormatted = '16/10';
+      if (dates.length > 0) {
+        const maxDateStr = dates[dates.length - 1];
+        maxFormatted = formatToDayMonth(maxDateStr);
+      }
+      document.getElementById('subtitle-text').textContent = `Monitoreo desde 16/10 hasta ${maxFormatted}`;
+    }
 
-      // Gráfico Derecho: Comparativa de las tasas que pertenecen al grupo activo
-      const groupItems = TASAS_ITEMS.filter(t => {
-        if (subgrupo !== 'ALL' && t.subgrupo !== subgrupo) return false;
-        if (seg !== 'ALL' && t.segmento !== seg) return false;
+    // Process & Initialize Dashboard
+    function processLoadedData(dataRows, sourceName) {
+      rawDataset = cleanAndNormalizeData(dataRows);
+      
+      if (rawDataset.length === 0) {
+        updateStatus('No se encontraron registros válidos en el archivo.', true);
+        return;
+      }
+
+      const cleanFileName = sourceName.split('/').pop().split('\\').pop();
+      document.getElementById('source-name').textContent = cleanFileName;
+      document.getElementById('status-update-label').textContent = 'Última lectura: ' + new Date().toLocaleTimeString('es-AR');
+      document.getElementById('records-summary-label').textContent = `${formatCount(rawDataset.length)} registros procesados`;
+      updateStatus(`Datos sincronizados con éxito desde ${cleanFileName}.`);
+
+      updateDynamicSubtitle();
+      populateFilterOptions();
+      applyFilters();
+    }
+
+    // Populate filter dropdowns based on real data
+    function populateFilterOptions() {
+      const selectImpuesto = document.getElementById('filter-impuesto');
+      const currentValue = selectImpuesto.value;
+
+      const taxes = [...new Set(rawDataset.map(d => d.impuesto))].sort();
+      selectImpuesto.innerHTML = '<option value="ALL">Todos los Impuestos</option>';
+      taxes.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        const nombreDescriptivo = (t === 'ABL' ? 'Inm/ABL' : (t === 'RV' ? 'Patentes' : t));
+        opt.textContent = `${nombreDescriptivo} (${rawDataset.filter(d => d.impuesto === t).length})`;
+        selectImpuesto.appendChild(opt);
+      });
+
+      if (taxes.includes(currentValue)) {
+        selectImpuesto.value = currentValue;
+      }
+
+      const dates = rawDataset.map(d => d.FechaConsolidacion).filter(Boolean).sort();
+      if (dates.length > 0) {
+        const minDate = dates[0];
+        const maxDate = dates[dates.length - 1];
+        const desdeInput = document.getElementById('filter-fecha-desde');
+        const hastaInput = document.getElementById('filter-fecha-hasta');
+        if (!desdeInput.value) desdeInput.min = minDate;
+        if (!hastaInput.value) hastaInput.max = maxDate;
+      }
+    }
+
+    // Apply active filters
+    function applyFilters() {
+      const impuestoVal = document.getElementById('filter-impuesto').value;
+      const cuotasVal = document.getElementById('filter-cuotas').value;
+      const desdeVal = document.getElementById('filter-fecha-desde').value;
+      const hastaVal = document.getElementById('filter-fecha-hasta').value;
+
+      filteredDataset = rawDataset.filter(item => {
+        // Impuesto
+        if (impuestoVal !== 'ALL' && item.impuesto !== impuestoVal) return false;
+
+        // Cuotas segment
+        if (cuotasVal === '1' && item.ctas !== 1) return false;
+        if (cuotasVal === '2-11' && (item.ctas < 2 || item.ctas > 11)) return false;
+        if (cuotasVal === '12' && item.ctas !== 12) return false;
+
+        // Fechas
+        if (desdeVal && item.FechaConsolidacion && item.FechaConsolidacion < desdeVal) return false;
+        if (hastaVal && item.FechaConsolidacion && item.FechaConsolidacion > hastaVal) return false;
+
         return true;
       });
-      const sortedTasas = [...groupItems].sort((a, b) => getLatest(b.id).valor - getLatest(a.id).valor);
 
-      const groupNames = {
-        ACTIVAS: 'Tasas Activas por Línea de Crédito',
-        PLAZO_FIJO: 'Tasas Pasivas de Plazos Fijos y Depósitos',
-        MAYORISTAS: 'Tasas Mayoristas (BADLAR, TM20 y TAMAR)',
-        ALL: 'Nivel Actual de Tasas Bancarias (% TNA)'
-      };
-      document.getElementById('chart-right-title').textContent = groupNames[subgrupo] || 'Comparativa de Tasas';
-      document.getElementById('chart-right-subtitle').textContent = 'Último valor informado por el BCRA para cada tasa del grupo';
+      // Update badge
+      const isFiltered = (impuestoVal !== 'ALL' || cuotasVal !== 'ALL' || desdeVal || hastaVal);
+      const badge = document.getElementById('filtered-count-badge');
+      if (isFiltered) {
+        badge.textContent = `${formatCount(filteredDataset.length)} de ${formatCount(rawDataset.length)} planes`;
+        badge.className = 'ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200';
+      } else {
+        badge.textContent = `Mostrando todos (${formatCount(rawDataset.length)} planes)`;
+        badge.className = 'ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
+      }
 
-      const ctxR = document.getElementById('chart-right-canvas').getContext('2d');
-      if (chartRightInstance) chartRightInstance.destroy();
-      chartRightInstance = new Chart(ctxR, {
-        type: 'bar',
+      // Update KPIs, Universe progress & Charts
+      updateKpis();
+      updateUniversoProgress();
+      updateCuotasCards();
+      renderCharts();
+    }
+
+    // Determinar el universo de deuda administrativa aplicable según el filtro
+    function getUniversoActual() {
+      const impuestoVal = document.getElementById('filter-impuesto').value;
+      if (impuestoVal === 'ABL') {
+        return DEUDA_ADMINISTRATIVA.ABL;
+      } else if (impuestoVal === 'RV') {
+        return DEUDA_ADMINISTRATIVA.RV;
+      }
+      return DEUDA_ADMINISTRATIVA.ALL;
+    }
+
+    // Update KPI Cards
+    function updateKpis() {
+      const totalConsolidada = filteredDataset.reduce((acc, d) => acc + d.TotConsolidada, 0);
+      const totalNominal = filteredDataset.reduce((acc, d) => acc + d.Nominal, 0);
+      const totalCondonado = filteredDataset.reduce((acc, d) => acc + d.interes_condonado, 0);
+      const totalInteresPlan = filteredDataset.reduce((acc, d) => acc + d.interes_plan, 0);
+      const totalResarcitorios = filteredDataset.reduce((acc, d) => acc + d.Resarcitorios, 0);
+      const totalPlanes = filteredDataset.length;
+
+      const univ = getUniversoActual();
+
+      // 1) Total adherido a moratoria (en millones)
+      document.getElementById('kpi-total-consolidada').textContent = formatMillions(totalConsolidada);
+      const pctDeudas = univ.cantidadDeudas > 0 ? ((totalPlanes / univ.cantidadDeudas) * 100).toFixed(2) : 0;
+      document.getElementById('kpi-planes-count').textContent = `${formatCount(totalPlanes)} planes (${pctDeudas}% de deudas)`;
+
+      // 2) Importe nominal (en millones)
+      document.getElementById('kpi-total-nominal').textContent = formatMillions(totalNominal);
+      const pctNominal = univ.deudaNominalTotal > 0 ? ((totalNominal / univ.deudaNominalTotal) * 100).toFixed(2) : 0;
+      document.getElementById('kpi-nominal-pct').textContent = `${pctNominal}% del total posible`;
+
+      // 3) Intereses resarcitorios adheridos (interes plan) (en millones)
+      document.getElementById('kpi-total-interes-plan').textContent = formatMillions(totalInteresPlan);
+      document.getElementById('kpi-total-resarcitorios').textContent = formatMillions(totalResarcitorios);
+
+      // 4) Intereses condonados (en millones)
+      document.getElementById('kpi-total-condonado').textContent = formatMillions(totalCondonado);
+      const condonacionTasa = totalResarcitorios > 0 ? ((totalCondonado / totalResarcitorios) * 100).toFixed(1) : 0;
+      document.getElementById('kpi-tasa-condonacion').textContent = `${condonacionTasa}% condonado`;
+    }
+
+    // Update Universe Potential Progress
+    function updateUniversoProgress() {
+      const univ = getUniversoActual();
+      const totalNominal = filteredDataset.reduce((acc, d) => acc + d.Nominal, 0);
+      const totalPlanes = filteredDataset.length;
+
+      const pctNominal = univ.deudaNominalTotal > 0 ? ((totalNominal / univ.deudaNominalTotal) * 100).toFixed(2) : '0,00';
+      const pctCantidad = univ.cantidadDeudas > 0 ? ((totalPlanes / univ.cantidadDeudas) * 100).toFixed(2) : '0,00';
+
+      document.getElementById('universo-nombre-label').textContent = univ.nombre;
+      document.getElementById('universo-nominal-meta').textContent = formatMillions(univ.deudaNominalTotal);
+      document.getElementById('universo-deudas-meta').textContent = `${formatCount(univ.cantidadDeudas)} deudas`;
+
+      // Barra 1: Nominal
+      document.getElementById('univ-pct-nominal').textContent = `${pctNominal}%`;
+      document.getElementById('univ-bar-nominal').style.width = `${Math.min(Math.max(parseFloat(pctNominal) * 5, 1.5), 100)}%`; // escalado visual para que se perciba
+      document.getElementById('univ-val-nominal').textContent = formatMillions(totalNominal);
+      document.getElementById('univ-total-nominal').textContent = formatMillions(univ.deudaNominalTotal);
+
+      // Barra 2: Cantidad
+      document.getElementById('univ-pct-cantidad').textContent = `${pctCantidad}%`;
+      document.getElementById('univ-bar-cantidad').style.width = `${Math.min(Math.max(parseFloat(pctCantidad) * 5, 1.5), 100)}%`;
+      document.getElementById('univ-val-cantidad').textContent = formatCount(totalPlanes);
+      document.getElementById('univ-total-cantidad').textContent = formatCount(univ.cantidadDeudas);
+    }
+
+    // Update Segment Cards (1 pago, 2-11 cuotas, 12 cuotas)
+    function updateCuotasCards() {
+      const totalPlanes = filteredDataset.length;
+
+      // Group 1: 1 Pago
+      const group1 = filteredDataset.filter(d => d.ctas === 1);
+      const g1Monto = group1.reduce((acc, d) => acc + d.TotConsolidada, 0);
+      const g1Condonado = group1.reduce((acc, d) => acc + d.interes_condonado, 0);
+      const g1Count = group1.length;
+      const g1Pct = totalPlanes > 0 ? ((g1Count / totalPlanes) * 100).toFixed(1) : 0;
+      const g1Ticket = g1Count > 0 ? g1Monto / g1Count : 0;
+
+      document.getElementById('badge-pct-planes-1').textContent = `${g1Pct}% de planes`;
+      document.getElementById('cuota-1-monto').textContent = formatMillions(g1Monto);
+      document.getElementById('cuota-1-count').textContent = formatCount(g1Count);
+      document.getElementById('cuota-1-condonado').textContent = formatMillions(g1Condonado);
+      document.getElementById('cuota-1-ticket').textContent = formatMillions(g1Ticket);
+
+      // Group 2: 2 a 11 Cuotas
+      const groupMedio = filteredDataset.filter(d => d.ctas >= 2 && d.ctas <= 11);
+      const gMedioMonto = groupMedio.reduce((acc, d) => acc + d.TotConsolidada, 0);
+      const gMedioInteres = groupMedio.reduce((acc, d) => acc + d.interes_plan, 0);
+      const gMedioCount = groupMedio.length;
+      const gMedioPct = totalPlanes > 0 ? ((gMedioCount / totalPlanes) * 100).toFixed(1) : 0;
+      const gMedioAvgInstallment = groupMedio.reduce((acc, d) => acc + (d.ctas > 0 ? d.TotConsolidada / d.ctas : 0), 0) / (gMedioCount || 1);
+
+      document.getElementById('badge-pct-planes-medio').textContent = `${gMedioPct}% de planes`;
+      document.getElementById('cuota-medio-monto').textContent = formatMillions(gMedioMonto);
+      document.getElementById('cuota-medio-count').textContent = formatCount(gMedioCount);
+      document.getElementById('cuota-medio-interes').textContent = formatMillions(gMedioInteres);
+      document.getElementById('cuota-medio-promedio-cuota').textContent = formatMillions(gMedioAvgInstallment);
+
+      // Group 3: 12 Cuotas
+      const group12 = filteredDataset.filter(d => d.ctas === 12);
+      const g12Monto = group12.reduce((acc, d) => acc + d.TotConsolidada, 0);
+      const g12Interes = group12.reduce((acc, d) => acc + d.interes_plan, 0);
+      const g12Count = group12.length;
+      const g12Pct = totalPlanes > 0 ? ((g12Count / totalPlanes) * 100).toFixed(1) : 0;
+      const g12AvgInstallment = g12Count > 0 ? (g12Monto / 12) / g12Count : 0;
+
+      document.getElementById('badge-pct-planes-12').textContent = `${g12Pct}% de planes`;
+      document.getElementById('cuota-12-monto').textContent = formatMillions(g12Monto);
+      document.getElementById('cuota-12-count').textContent = formatCount(g12Count);
+      document.getElementById('cuota-12-interes').textContent = formatMillions(g12Interes);
+      document.getElementById('cuota-12-promedio-cuota').textContent = formatMillions(g12AvgInstallment);
+    }
+
+    // Render all 4 Charts
+    function renderCharts() {
+      renderCuotasDistChart();
+      renderImpuestoDistChart();
+      renderCuotasHistogram();
+      renderTimelineChart();
+    }
+
+    // Chart 1: Doughnut Cuotas (1 pago, 2-11 cuotas, 12 cuotas)
+    function renderCuotasDistChart() {
+      const ctx = document.getElementById('chart-cuotas-dist').getContext('2d');
+      if (chartCuotasDistInstance) chartCuotasDistInstance.destroy();
+
+      const g1 = filteredDataset.filter(d => d.ctas === 1);
+      const gMedio = filteredDataset.filter(d => d.ctas >= 2 && d.ctas <= 11);
+      const g12 = filteredDataset.filter(d => d.ctas === 12);
+
+      let dataValues, labels;
+      if (cuotasChartMetric === 'planes') {
+        dataValues = [g1.length, gMedio.length, g12.length];
+        labels = ['1 Pago (Contado)', '2 a 11 Cuotas', '12 Cuotas'];
+      } else {
+        dataValues = [
+          g1.reduce((a, b) => a + b.TotConsolidada, 0),
+          gMedio.reduce((a, b) => a + b.TotConsolidada, 0),
+          g12.reduce((a, b) => a + b.TotConsolidada, 0)
+        ];
+        labels = ['1 Pago (Contado)', '2 a 11 Cuotas', '12 Cuotas'];
+      }
+
+      chartCuotasDistInstance = new Chart(ctx, {
+        type: 'doughnut',
         data: {
-          labels: sortedTasas.map(t => t.label.replace('Tasa ', '').replace('Plazo Fijo ', 'PF ')),
+          labels: labels,
           datasets: [{
-            label: '% Anual',
-            data: sortedTasas.map(t => getLatest(t.id).valor),
-            backgroundColor: sortedTasas.map(t => t.color),
-            borderRadius: 6
+            data: dataValues,
+            backgroundColor: ['#10b981', '#0ea5e9', '#a855f7'],
+            borderColor: '#ffffff',
+            borderWidth: 2,
+            hoverOffset: 6
           }]
         },
         options: {
-          indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: c => ` ${formatNumber(c.raw, 2)}%` } }
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 12, font: { size: 11 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                  if (cuotasChartMetric === 'planes') {
+                    return ` ${context.label}: ${formatCount(val)} planes (${pct}%)`;
+                  } else {
+                    return ` ${context.label}: ${formatMillions(val)} (${pct}%)`;
+                  }
+                }
+              }
+            }
           },
-          scales: {
-            x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: v => v + '%' } },
-            y: { grid: { display: false }, ticks: { font: { size: 11, weight: '500' } } }
-          }
+          cutout: '65%'
         }
       });
-
-      // Actualizar las 3 Tarjetas de Detalle para TASAS
-      document.getElementById('cards-section-title').textContent = 'Detalle de Tasas Activas y Pasivas del Sistema Financiero';
-      document.getElementById('cards-section-subtitle').textContent = 'Tasas de Líneas de Crédito | Plazos Fijos Minoristas y General | Tasas Mayoristas e Institucionales';
-
-      setDetailCard(1, 'fa-credit-card', 'Tasas Activas (Líneas de Crédito)', 'Cartera Activa',
-        'Préstamos Personales / Tarjetas', `${formatNumber(getLatest(14).valor, 2)}% / ${formatNumber(getLatest(1215).valor, 2)}%`,
-        'Adelantos Cta. Cte. (Emp./Fija):', `${formatNumber(getLatest(13).valor, 2)}% / ${formatNumber(getLatest(1199).valor, 2)}%`,
-        'Documentos a Sola Firma:', `${formatNumber(getLatest(1216).valor, 2)}% TNA`,
-        'Hipotecarios (Fija / UVA) y Prend.:', `${formatNumber(getLatest(1217).valor, 1)}% / ${formatNumber(getLatest(1240).valor, 1)}% / ${formatNumber(getLatest(1218).valor, 1)}%`);
-
-      setDetailCard(2, 'fa-piggy-bank', 'Plazos Fijos (Total e Individuos)', 'Costo Fondeo Minorista',
-        'Tasa Plazo Fijo Total en Pesos', `${formatNumber(getLatest(1189).valor, 2)}% TNA`,
-        'PF Personas Humanas ($):', `${formatNumber(getLatest(1190).valor, 2)}% TNA`,
-        'Depósitos a 30 días / 60+ días:', `${formatNumber(getLatest(12).valor, 2)}% / ${formatNumber(getLatest(1208).valor, 2)}%`,
-        'Plazo Fijo UVA / Plazo Fijo USD:', `${formatNumber(getLatest(1227).valor, 2)}% / ${formatNumber(getLatest(1193).valor, 2)}%`);
-
-      setDetailCard(3, 'fa-building-columns', 'Tasas Mayoristas y Corporativas', 'Tramos Mayoristas',
-        'BADLAR Bancos Privados (TNA / TEA)', `${formatNumber(getLatest(7).valor, 2)}% / ${formatNumber(getLatest(35).valor, 2)}%`,
-        'TM20 Privados (+20M):', `${formatNumber(getLatest(8).valor, 2)}% TNA`,
-        'TAMAR Privados (+1.000M):', `${formatNumber(getLatest(44).valor, 2)}% TNA`,
-        'PF Jurídicas / Prest. Financieros:', `${formatNumber(getLatest(1192).valor, 2)}% / ${formatNumber(getLatest(1191).valor, 2)}%`);
     }
 
-    // ==================== VISTA 3: ÍNDICES Y TIPO DE CAMBIO ====================
-    function renderIndicesView(familia, modoVisual, selectedId, rangeDays) {
-      const itemFoco = INDICES_ITEMS.find(i => i.id === selectedId) || INDICES_ITEMS[0];
-      const effectiveDays = familia === 'IPC' ? Math.max(rangeDays, 365) : rangeDays;
-      const rawSeries = filterSeriesByDays(varHistory[String(itemFoco.id)] || [], effectiveDays);
+    // Chart 2: Impuestos (Bars - TotConsolidada & Interes Condonado en Millones)
+    function renderImpuestoDistChart() {
+      const ctx = document.getElementById('chart-impuesto-dist').getContext('2d');
+      if (chartImpuestoDistInstance) chartImpuestoDistInstance.destroy();
 
-      let plotSeries = rawSeries.map(p => ({ fecha: p.fecha, valor: Number(p.valor) }));
-      let badgeUnit = itemFoco.unit;
+      const taxes = [...new Set(filteredDataset.map(d => d.impuesto))].sort();
+      const consolidados = [];
+      const condonados = [];
 
-      if (modoVisual === 'VAR30' && rawSeries.length > 2 && familia !== 'IPC') {
-        const allHist = varHistory[String(itemFoco.id)] || [];
-        plotSeries = rawSeries.map(p => {
-          const idx = allHist.findIndex(x => x.fecha === p.fecha);
-          const refIdx = Math.max(0, idx - 22);
-          const refVal = Number(allHist[refIdx]?.valor || p.valor);
-          const pct = refVal > 0 ? ((Number(p.valor) - refVal) / refVal) * 100 : 0;
-          return { fecha: p.fecha, valor: pct };
-        });
-        badgeUnit = 'Var. % (30d)';
-      }
-
-      document.getElementById('chart-left-title').textContent = itemFoco.label;
-      document.getElementById('chart-left-subtitle').textContent = modoVisual === 'VAR30' && familia !== 'IPC'
-        ? 'Variación porcentual acumulada móvil a 30 días'
-        : 'Evolución histórica oficial publicada por el BCRA';
-      document.getElementById('chart-left-badge').textContent = badgeUnit;
-
-      drawLineChart('chart-left-canvas', true, plotSeries.map(p => formatDayMonth(p.fecha)), [{
-        label: itemFoco.label,
-        data: plotSeries.map(p => p.valor),
-        borderColor: itemFoco.color,
-        backgroundColor: 'rgba(139, 92, 246, 0.12)',
-        fill: true
-      }], v => modoVisual === 'VAR30' && familia !== 'IPC' ? `${formatNumber(v, 1)}%` : `${itemFoco.prefix}${formatNumber(v, 2)}${itemFoco.suffix}`);
-
-      // Gráfico Derecho: Dinámica comparada de toda la familia seleccionada
-      const famItems = INDICES_ITEMS.filter(i => i.familia === familia);
-      const baseHistory = filterSeriesByDays(varHistory[String(famItems[0].id)] || [], effectiveDays);
-      const dateKeys = baseHistory.map(p => p.fecha);
-      const labelsRight = dateKeys.map(d => formatDayMonth(d));
-
-      const datasetsRight = famItems.map(cfg => {
-        const h = varHistory[String(cfg.id)] || [];
-        const map = {};
-        h.forEach(r => { map[r.fecha] = Number(r.valor); });
-        let lastVal = null;
-        const aligned = dateKeys.map(d => {
-          if (map[d] !== undefined) lastVal = map[d];
-          return lastVal;
-        });
-        return {
-          label: cfg.label,
-          data: aligned,
-          borderColor: cfg.color,
-          backgroundColor: familia === 'IPC' && cfg.id === 27 ? cfg.color : 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          tension: 0.25
-        };
+      taxes.forEach(t => {
+        const rows = filteredDataset.filter(d => d.impuesto === t);
+        consolidados.push(rows.reduce((a, b) => a + b.TotConsolidada, 0));
+        condonados.push(rows.reduce((a, b) => a + b.interes_condonado, 0));
       });
 
-      const famTitles = {
-        TC: 'Comparativa de Tipos de Cambio y Bandas Cambiarias ($/USD)',
-        IPC: 'Evolución de Inflación Mensual, Interanual y Expectativa REM (%)',
-        CER_UVA: 'Evolución Comparada de Coeficientes CER y UVA'
-      };
-      document.getElementById('chart-right-title').textContent = famTitles[familia];
-      document.getElementById('chart-right-subtitle').textContent = 'Series superpuestas para evaluar la dinámica conjunta del grupo';
+      const displayLabels = taxes.map(t => (t === 'ABL' ? 'Inm/ABL' : (t === 'RV' ? 'Patentes' : t)));
 
-      const ctxR = document.getElementById('chart-right-canvas').getContext('2d');
-      if (chartRightInstance) chartRightInstance.destroy();
-      chartRightInstance = new Chart(ctxR, {
-        type: 'line',
-        data: { labels: labelsRight, datasets: datasetsRight },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10, family: 'Inter' } } }
-          },
-          scales: {
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } },
-            y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } }
-          }
-        }
-      });
-
-      // Actualizar las 3 Tarjetas de Detalle para ÍNDICES Y TC
-      document.getElementById('cards-section-title').textContent = 'Resumen de Tipo de Cambio, Inflación (IPC) e Indexadores Bancarios';
-      document.getElementById('cards-section-subtitle').textContent = 'Cotizaciones y Valuación Contable | Inflación IPC y REM | Coeficientes CER y UVA';
-
-      const varTcMay30 = getVarDays(5, 30, false);
-      const varUva30 = getVarDays(31, 30, false);
-      const varCer30 = getVarDays(30, 30, false);
-
-      setDetailCard(1, 'fa-dollar-sign', 'Tipo de Cambio y Bandas', `Var. 30d: ${varTcMay30 !== null ? (varTcMay30 >= 0 ? '+' : '') + formatNumber(varTcMay30, 1) + '%' : '—'}`,
-        'Mayorista (Com. A 3500) / Contable', `$ ${formatNumber(getLatest(5).valor, 2)} / $ ${formatNumber(getLatest(84).valor, 2)}`,
-        'TC Minorista Promedio:', `$ ${formatNumber(getLatest(4).valor, 2)}`,
-        'TC Valuación Contable BCRA:', `$ ${formatNumber(getLatest(84).valor, 2)}`,
-        'Bandas Cambiarias (Inf. / Sup.):', `$ ${formatNumber(getLatest(1187).valor, 2)} — $ ${formatNumber(getLatest(1188).valor, 2)}`);
-
-      setDetailCard(2, 'fa-chart-line', 'Inflación IPC Nacional y REM', `Dato al ${formatDateShort(getLatest(27).fecha)}`,
-        'Inflación Mensual (IPC INDEC)', `${formatNumber(getLatest(27).valor, 1)}% mensual`,
-        'Inflación Interanual (IPC):', `${formatNumber(getLatest(28).valor, 1)}% i.a.`,
-        'Expectativa REM (Próx. 12M):', `${formatNumber(getLatest(29).valor, 1)}% i.a.`,
-        'Impacto en Recaudación:', 'Base de devengamiento real');
-
-      setDetailCard(3, 'fa-scale-unbalanced-flip', 'Indexadores Bancarios (CER y UVA)', `Ajuste 30d: +${formatNumber(varUva30 || 0, 1)}%`,
-        'Unidad de Valor Adquisitivo (UVA)', `$ ${formatNumber(getLatest(31).valor, 2)}`,
-        'Coeficiente CER Actual:', `${formatNumber(getLatest(30).valor, 2)}`,
-        'Variación Mensual CER / UVA:', `+${formatNumber(varCer30 || 0, 2)}% / +${formatNumber(varUva30 || 0, 2)}%`,
-        'Variación Anual UVA (365d):', `+${formatNumber(getVarDays(31, 365, false) || 0, 1)}%`);
-    }
-
-    // Helper para dibujar el gráfico izquierdo de serie histórica
-    function drawLineChart(canvasId, isLeft, labels, datasets, tooltipFormatter) {
-      const ctx = document.getElementById(canvasId).getContext('2d');
-      if (isLeft && chartLeftInstance) chartLeftInstance.destroy();
-
-      const chart = new Chart(ctx, {
-        type: 'line',
+      chartImpuestoDistInstance = new Chart(ctx, {
+        type: 'bar',
         data: {
-          labels,
-          datasets: datasets.map(d => ({
-            ...d,
-            borderWidth: 2.5,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            tension: 0.25
-          }))
+          labels: displayLabels,
+          datasets: [
+            {
+              label: 'Total adherido ($ M)',
+              data: consolidados,
+              backgroundColor: '#0284c7',
+              borderRadius: 6
+            },
+            {
+              label: 'Interés condonado ($ M)',
+              data: condonados,
+              backgroundColor: '#10b981',
+              borderRadius: 6
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
           plugins: {
-            legend: { display: datasets.length > 1 },
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
             tooltip: {
               callbacks: {
-                label: c => ` ${c.dataset.label}: ${tooltipFormatter ? tooltipFormatter(c.raw) : formatNumber(c.raw, 2)}`
+                label: (c) => ` ${c.dataset.label}: ${formatMillions(c.raw || 0)}`
               }
             }
           },
           scales: {
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } },
-            y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, callback: v => formatNumber(v, 0) } }
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (val) => '$ ' + (val / 1e6).toFixed(1) + ' M',
+                font: { size: 10 }
+              },
+              grid: { color: '#f1f5f9' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 11, weight: 'bold' } }
+            }
           }
         }
       });
-
-      if (isLeft) chartLeftInstance = chart;
     }
 
-    // Helper para poblar las 3 tarjetas inferiores de detalle
-    function setDetailCard(num, iconClass, badgeText, topRightText, mainLabel, mainVal, sub1Label, sub1Val, sub2Label, sub2Val, footLabel, footVal) {
-      document.getElementById(`card${num}-badge`).innerHTML = `<i class="fa-solid ${iconClass}"></i> ${badgeText}`;
-      document.getElementById(`card${num}-top-right`).textContent = topRightText;
-      document.getElementById(`card${num}-main-label`).textContent = mainLabel;
-      document.getElementById(`card${num}-main-val`).textContent = mainVal;
-      document.getElementById(`card${num}-sub1-label`).textContent = sub1Label;
-      document.getElementById(`card${num}-sub1-val`).textContent = sub1Val;
-      document.getElementById(`card${num}-sub2-label`).textContent = sub2Label;
-      document.getElementById(`card${num}-sub2-val`).textContent = sub2Val;
-      document.getElementById(`card${num}-foot-label`).textContent = footLabel;
-      document.getElementById(`card${num}-foot-val`).textContent = footVal;
+    // Chart 3: Histogram of installments (1 to 12)
+    function renderCuotasHistogram() {
+      const ctx = document.getElementById('chart-cuotas-histogram').getContext('2d');
+      if (chartCuotasHistoInstance) chartCuotasHistoInstance.destroy();
+
+      const cuotaLabels = ['1 cuota', '2 ctas', '3 ctas', '4 ctas', '5 ctas', '6 ctas', '7 ctas', '8 ctas', '9 ctas', '10 ctas', '11 ctas', '12 ctas'];
+      const counts = Array(12).fill(0);
+      const amounts = Array(12).fill(0);
+
+      filteredDataset.forEach(d => {
+        if (d.ctas >= 1 && d.ctas <= 12) {
+          counts[d.ctas - 1]++;
+          amounts[d.ctas - 1] += d.TotConsolidada;
+        }
+      });
+
+      const colors = counts.map((_, idx) => {
+        if (idx === 0) return '#10b981';
+        if (idx === 11) return '#a855f7';
+        return '#0ea5e9';
+      });
+
+      chartCuotasHistoInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: cuotaLabels,
+          datasets: [{
+            label: 'Cantidad de planes',
+            data: counts,
+            backgroundColor: colors,
+            borderRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(c) {
+                  const idx = c.dataIndex;
+                  return [
+                    ` Planes: ${formatCount(counts[idx])}`,
+                    ` Monto: ${formatMillions(amounts[idx])}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { font: { size: 10 } },
+              grid: { color: '#f1f5f9' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 } }
+            }
+          }
+        }
+      });
     }
 
-    // Eventos UI
+    // Chart 4: Timeline Chart
+    function renderTimelineChart() {
+      const ctx = document.getElementById('chart-timeline').getContext('2d');
+      if (chartTimelineInstance) chartTimelineInstance.destroy();
+
+      const dateMap = {};
+      filteredDataset.forEach(d => {
+        const f = d.FechaConsolidacion || 'Sin fecha';
+        if (!dateMap[f]) {
+          dateMap[f] = { planes: 0, monto: 0 };
+        }
+        dateMap[f].planes++;
+        dateMap[f].monto += d.TotConsolidada;
+      });
+
+      const sortedDates = Object.keys(dateMap).sort();
+      const displayDates = sortedDates.map(f => formatToDayMonth(f));
+      const dailyMontos = sortedDates.map(f => dateMap[f].monto);
+      const dailyPlanes = sortedDates.map(f => dateMap[f].planes);
+
+      let runningMonto = 0;
+      const cumulativeMontos = dailyMontos.map(m => (runningMonto += m));
+
+      let datasetConfig;
+      if (timelineChartMetric === 'monto') {
+        datasetConfig = [
+          {
+            type: 'line',
+            label: 'Acumulado ($ M)',
+            data: cumulativeMontos,
+            borderColor: '#0284c7',
+            backgroundColor: 'rgba(2, 132, 199, 0.1)',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: '#0284c7'
+          },
+          {
+            type: 'bar',
+            label: 'Diario ($ M)',
+            data: dailyMontos,
+            backgroundColor: 'rgba(99, 102, 241, 0.6)',
+            borderRadius: 6
+          }
+        ];
+      } else {
+        datasetConfig = [{
+          type: 'bar',
+          label: 'Planes del día',
+          data: dailyPlanes,
+          backgroundColor: '#6366f1',
+          borderRadius: 6
+        }];
+      }
+
+      chartTimelineInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: displayDates,
+          datasets: datasetConfig
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            tooltip: {
+              callbacks: {
+                label: function(c) {
+                  if (timelineChartMetric === 'monto') {
+                    return ` ${c.dataset.label}: ${formatMillions(c.raw || 0)}`;
+                  } else {
+                    return ` ${c.dataset.label}: ${formatCount(c.raw || 0)} planes`;
+                  }
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(val) {
+                  if (timelineChartMetric === 'monto') {
+                    return '$ ' + (val / 1e6).toFixed(1) + ' M';
+                  }
+                  return val;
+                },
+                font: { size: 10 }
+              },
+              grid: { color: '#f1f5f9' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    // Helper status update
+    function updateStatus(msg, isError = false) {
+      const statusBar = document.getElementById('status-bar');
+      const statusMsg = document.getElementById('status-message');
+      statusMsg.textContent = msg;
+
+      if (isError) {
+        statusBar.className = 'bg-rose-50 border-b border-rose-200 text-rose-900 text-xs px-4 py-2 transition-all';
+      } else {
+        statusBar.className = 'bg-sky-50 border-b border-sky-200 text-sky-900 text-xs px-4 py-2 transition-all';
+      }
+    }
+
+    // INITIALIZATION
     document.addEventListener('DOMContentLoaded', () => {
-      // Botones principales de dimensión: STOCKS | TASAS | INDICES
-      document.querySelectorAll('.main-group-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          mainGroup = btn.getAttribute('data-main-group');
-          document.querySelectorAll('.main-group-btn').forEach(b => {
-            b.className = 'main-group-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
-          });
-          btn.className = 'main-group-btn px-3 py-1.5 rounded-lg text-xs font-bold transition bg-sky-600 text-white shadow-sm flex items-center gap-1.5';
-          configureControlsForMainGroup();
-          refreshDashboard();
-        });
-      });
+      // 1. Cargar archivo Excel automáticamente
+      loadDataFromUrl(currentDataUrl);
 
-      // Cambios en Filter 1 y Filter 2 actualizan Filter 3 cuando estamos en TASAS o INDICES
-      document.getElementById('filter-1').addEventListener('change', () => {
-        if (mainGroup === 'TASAS') populateTasasFilter3();
-        else if (mainGroup === 'INDICES') populateIndicesFilter3();
-        refreshDashboard();
-      });
+      // 2. Eventos de los filtros
+      document.getElementById('filter-impuesto').addEventListener('change', applyFilters);
+      document.getElementById('filter-cuotas').addEventListener('change', applyFilters);
+      document.getElementById('filter-fecha-desde').addEventListener('change', applyFilters);
+      document.getElementById('filter-fecha-hasta').addEventListener('change', applyFilters);
 
-      document.getElementById('filter-2').addEventListener('change', () => {
-        if (mainGroup === 'TASAS') populateTasasFilter3();
-        refreshDashboard();
-      });
-
-      document.getElementById('filter-3').addEventListener('change', refreshDashboard);
-      document.getElementById('filter-rango').addEventListener('change', refreshDashboard);
-
-      // Botón Restablecer
       document.getElementById('btn-reset-filters').addEventListener('click', () => {
-        mainGroup = 'STOCKS';
-        document.querySelectorAll('.main-group-btn').forEach(b => {
-          const isStocks = b.getAttribute('data-main-group') === 'STOCKS';
-          b.className = isStocks
-            ? 'main-group-btn px-3 py-1.5 rounded-lg text-xs font-bold transition bg-sky-600 text-white shadow-sm flex items-center gap-1.5'
-            : 'main-group-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
-        });
-        document.getElementById('filter-rango').value = '180';
-        configureControlsForMainGroup();
-        refreshDashboard();
+        document.getElementById('filter-impuesto').value = 'ALL';
+        document.getElementById('filter-cuotas').value = 'ALL';
+        document.getElementById('filter-fecha-desde').value = '';
+        document.getElementById('filter-fecha-hasta').value = '';
+        applyFilters();
       });
 
-      // Toggle Ranking / Participación en el gráfico derecho de Stocks
-      document.getElementById('toggle-right-bar').addEventListener('click', (e) => {
-        rightChartStockMode = 'bar';
-        e.target.className = 'px-2.5 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700';
-        document.getElementById('toggle-right-doughnut').className = 'px-2.5 py-0.5 rounded hover:bg-slate-200';
-        refreshDashboard();
+      // 3. Conmutadores de métricas en los gráficos
+      document.getElementById('toggle-chart-cuotas-planes').addEventListener('click', function() {
+        cuotasChartMetric = 'planes';
+        this.className = 'px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700';
+        document.getElementById('toggle-chart-cuotas-montos').className = 'px-2 py-0.5 rounded hover:bg-slate-200';
+        renderCuotasDistChart();
       });
 
-      document.getElementById('toggle-right-doughnut').addEventListener('click', (e) => {
-        rightChartStockMode = 'doughnut';
-        e.target.className = 'px-2.5 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700';
-        document.getElementById('toggle-right-bar').className = 'px-2.5 py-0.5 rounded hover:bg-slate-200';
-        refreshDashboard();
+      document.getElementById('toggle-chart-cuotas-montos').addEventListener('click', function() {
+        cuotasChartMetric = 'montos';
+        this.className = 'px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700';
+        document.getElementById('toggle-chart-cuotas-planes').className = 'px-2 py-0.5 rounded hover:bg-slate-200';
+        renderCuotasDistChart();
       });
 
-      loadBcraData();
+      document.getElementById('toggle-timeline-monto').addEventListener('click', function() {
+        timelineChartMetric = 'monto';
+        this.className = 'px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700';
+        document.getElementById('toggle-timeline-planes').className = 'px-2 py-0.5 rounded hover:bg-slate-200';
+        renderTimelineChart();
+      });
+
+      document.getElementById('toggle-timeline-planes').addEventListener('click', function() {
+        timelineChartMetric = 'planes';
+        this.className = 'px-2 py-0.5 rounded bg-white shadow-xs font-semibold text-sky-700';
+        document.getElementById('toggle-timeline-monto').className = 'px-2 py-0.5 rounded hover:bg-slate-200';
+        renderTimelineChart();
+      });
     });
   </script>
 </body>
